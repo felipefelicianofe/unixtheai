@@ -93,3 +93,44 @@ Frontend guardrails must be backed by robust data-fetching logic that handles un
 
 13. THE BUTTERFLY EFFECT
 Analyze cross-domain impact
+
+
+
+
+
+
+Atue como um Engenheiro de Software Sênior e Arquiteto de Soluções especialista em desenvolvimento assistido por IA.
+
+Nós vamos iniciar o desenvolvimento/análise de um projeto. Para garantir que não percamos a visão global enquanto executamos tarefas táticas, preciso que você estruture o nosso fluxo de trabalho baseando-se em 4 Níveis de Planos de Ação.
+
+Aqui estão as informações iniciais sobre o meu projeto:
+
+Nome/Conceito do Projeto: Plataforma de Auto Gerenciamento e Trading Crypto 24/7 (UnixAI / Migração Lovable para Infra Própria).
+Objetivo de Negócio (Visão Global): Monitoramento contínuo de múltiplos ativos cripto na Binance (BTC, ETH, SOL, etc.), emissão autônoma de sinais qualificados (Entry, Breakeven, TP1-3, SL), controle rigoroso de P&L Virtual (Unidades Lucrativas) e, potencialmente, integração modular com um Painel de Terapeutas/Credit System em background.
+Stack Tecnológico Real: Vite + React (TypeScript Strict), Tailwind CSS, e backend descentralizado no Supabase (PostgreSQL, RLS rigoroso Edge Functions) e Hospedagem Vercel.
+
+Feature Atual (O que vamos focar agora): Execute com maestria o que você entender como o melhor para esse momento.
+
+Com base nisso, gere uma Análise 360º detalhando os 4 níveis abaixo antes de escrevermos qualquer linha de código:
+
+1. Plano de Ação Global (O Mapa do Território):
+Faça um resumo arquitetural da plataforma. Quais são os principais domínios, módulos e o fluxo de dados em alto nível? Qual é a visão de longo prazo para que o código de hoje não quebre a escala de amanhã?
+
+2. Plano de Ação Baseado na Feature (O Escopo da Sprint):
+Quebre a "Feature Atual" mencionada acima em épicos ou grandes blocos de entrega. Onde essa feature se encaixa no Plano Global? Quais são as dependências técnicas para que ela funcione?
+
+3. Plano de Ação do Prompt / Regras de Engajamento (O Workflow):
+Defina as regras de como nós dois (Humano e IA) vamos interagir.
+
+Estabeleça "pontos de parada" (breakpoints) onde você deve pausar e pedir minha aprovação antes de continuar.
+
+Defina como você deve me apresentar o código (ex: focar apenas no trecho alterado ou no arquivo completo?).
+
+Determine como vamos lidar com testes e refatoração durante o processo.
+
+4. Plano de Ação Controlado pela IA (O Checklist Tático):
+Agora, crie um checklist passo a passo no formato Markdown (com [ ]) apenas para a primeira etapa do desenvolvimento da "Feature Atual". Esta será a sua lista de tarefas interna. Conforme formos avançando, você deverá atualizar e marcar os itens concluídos.
+
+Aguarde minha validação sobre esses 4 pontos antes de iniciarmos a programação.
+
+Proponha as mudanças mais fantásticas e eficazes que a plataforma já viu

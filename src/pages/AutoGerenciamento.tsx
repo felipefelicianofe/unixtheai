@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Database, Plus, Play, Info, CheckCircle2, XCircle, ChevronDown, ChevronUp, Trash2, TrendingUp, TrendingDown, Clock, Target, RefreshCw, Brain, Sparkles, Loader2, RotateCcw, ArrowUp, ArrowDown, Minus, Eye } from "lucide-react";
+import { Database, Plus, Play, Info, CheckCircle2, XCircle, ChevronDown, ChevronUp, Trash2, TrendingUp, TrendingDown, Clock, Target, RefreshCw, Brain, Sparkles, Loader2, RotateCcw, ArrowUp, ArrowDown, Minus, Eye, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import AppNavBar from "@/components/AppNavBar";
@@ -379,6 +379,38 @@ const AutoGerenciamento = () => {
     onError: (err: Error) => toast.error("Erro ao criar: " + err.message),
   });
 
+  const createAllConfigsMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Usuário não logado");
+      
+      const configsToInsert = AVAILABLE_ASSETS.map(asset => ({
+        asset: asset.toUpperCase(),
+        timeframe: "15m",
+        analysis_period_minutes: 1,
+        leverage: 150,
+        admin_id: user.id,
+        is_active: true,
+        last_run_at: null,
+      }));
+
+      const { error } = await supabase.from('auto_management_configs').insert(configsToInsert);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['auto-management-configs'] });
+      toast.success("Todos os ativos adicionados! (15m, 1min, 150x)");
+      setIsCreating(false);
+      refreshConfigs();
+      try {
+        await supabase.functions.invoke('run-auto-management');
+        queryClient.invalidateQueries({ queryKey: ['auto-management-history'] });
+      } catch (e) {
+        console.error("Erro ao engatilhar bulk run-auto-management", e);
+      }
+    },
+    onError: (err: Error) => toast.error("Erro ao criar em massa: " + err.message),
+  });
+
   const toggleConfigMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string, is_active: boolean }) => {
       const { error } = await supabase
@@ -658,12 +690,29 @@ const AutoGerenciamento = () => {
             </div>
 
             {isCreating && (
-              <Card className="glass-panel border-primary/30">
-                <CardHeader>
-                  <CardTitle className="text-lg">Nova Ação de AutoAnálise</CardTitle>
-                  <CardDescription>Defina o ativo e o período.</CardDescription>
+              <Card className="glass-panel border-primary/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-primary/5 pointer-events-none" />
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                  <div>
+                    <CardTitle className="text-lg">Nova Ação de AutoAnálise</CardTitle>
+                    <CardDescription>Defina o ativo e o período individualmente, ou preencha a base de dados rapidamente.</CardDescription>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="default" 
+                    className="bg-amber-500 hover:bg-amber-600 text-white border-none shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_20px_rgba(245,158,11,0.5)] transition-all ease-in-out duration-300 transform hover:scale-[1.02]"
+                    onClick={() => createAllConfigsMutation.mutate()}
+                    disabled={createAllConfigsMutation.isPending}
+                  >
+                    {createAllConfigsMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    ) : (
+                      <Zap className="w-5 h-5 mr-2 text-yellow-100 fill-yellow-200" />
+                    )}
+                    Fast Setup: Adicionar Tudo (15m, 1m, 150x)
+                  </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative z-10">
                   <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                     <div className="space-y-2">
                       <Label>Ativo</Label>
