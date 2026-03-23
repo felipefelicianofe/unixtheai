@@ -21,6 +21,7 @@ ALTER TABLE public.system_heartbeats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.autopilot_settings ADD COLUMN IF NOT EXISTS target_assets JSONB DEFAULT '["BTCUSDT", "ETHUSDT", "SOLUSDT"]'::jsonb;
 
 -- Policy: Leitura pública (para o frontend visualizar se o motor está vivo)
+DROP POLICY IF EXISTS "Leitura pública do Heartbeat" ON public.system_heartbeats;
 CREATE POLICY "Leitura pública do Heartbeat" 
     ON public.system_heartbeats 
     FOR SELECT 
@@ -31,6 +32,7 @@ CREATE POLICY "Leitura pública do Heartbeat"
 -- Substitua 'lqjordqablukrlyzddur' pelo seu project ID se diferir
 
 -- A. Agendamento do Auto-Refine (Gerenciador de ordens ativas - A cada 1 minuto)
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'loop_auto_management';
 SELECT cron.schedule(
     'loop_auto_management',
     '* * * * *', -- A cada 1 minuto
@@ -46,6 +48,7 @@ SELECT cron.schedule(
 );
 
 -- B. Agendamento do Auto-Trade Engine (Invasão e Execução de Setups Ótimos - A cada 5 minutos)
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'loop_autotrade_engine';
 SELECT cron.schedule(
     'loop_autotrade_engine',
     '*/5 * * * *', -- A cada 5 minutos
@@ -65,6 +68,7 @@ SELECT cron.schedule(
 );
 
 -- C. Agendamento do Analisador Massivo (A cada 5 minutos alternado)
+SELECT cron.unschedule(jobid) FROM cron.job WHERE jobname = 'loop_auto_analyses';
 SELECT cron.schedule(
     'loop_auto_analyses',
     '*/5 * * * *',

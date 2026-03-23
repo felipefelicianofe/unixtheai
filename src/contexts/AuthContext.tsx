@@ -27,25 +27,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthContext] Evento Auth: ${event}`);
+      console.log(`[AuthContext] Live Event: ${event} | User: ${session?.user?.email}`);
       
       if (!mounted) return;
 
       const currentUser = session?.user ?? null;
 
       if (currentUser) {
-        // ARQUITETURA SINGLE-ADMIN: Qualquer usuário autenticado com sucesso
-        // é automaticamente o Administrador Mestre da plataforma.
-        // A segurança é garantida pelo login (email + senha) no Supabase Auth.
-        console.log(`[AuthContext] Usuário ${currentUser.email} autenticado. Concedendo privilégios de Admin.`);
+        // BYPASS RBAC: Para evitar loops infinitos de verificação no banco de dados,
+        // qualquer usuário com login válido no Supabase é reconhecido como Admin.
         setUser(currentUser);
         setIsAdmin(true);
-        setLoading(false);
       } else {
         setUser(null);
         setIsAdmin(false);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => {
