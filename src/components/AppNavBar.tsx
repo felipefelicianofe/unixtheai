@@ -1,9 +1,10 @@
-import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase } from "lucide-react";
+import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase, TrendingUp, TrendingDown } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { BuildIndicator } from "@/components/layout/BuildIndicator";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
@@ -65,6 +66,7 @@ const AppNavBar = () => {
 
           {/* Right side */}
           <div className="flex items-center gap-3 shrink-0">
+            <BuildIndicator />
             <span className="w-2 h-2 rounded-full bg-[hsl(var(--neon-green))] animate-pulse" />
             <span className="text-xs text-muted-foreground hidden sm:block">Online</span>
             <Button

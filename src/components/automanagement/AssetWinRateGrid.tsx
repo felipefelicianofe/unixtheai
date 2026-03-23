@@ -35,47 +35,36 @@ export const AssetWinRateGrid: React.FC<AssetWinRateGridProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {assets.map(asset => {
             const assetStr = asset as string;
             const assetAll = history?.filter((h) => h.asset === asset) || [];
             const assetActionable = assetAll.filter((h) => !isNeutralEntry(h));
             const assetWins = assetActionable.filter((h) => h.status?.startsWith('WIN')).length;
             const assetLosses = assetActionable.filter((h) => h.status === 'LOSS').length;
-            const assetNeutrals = assetAll.filter((h) => isNeutralEntry(h)).length;
             const totalFinished = assetWins + assetLosses;
             const assetWinRate = totalFinished > 0 ? (assetWins / totalFinished) * 100 : 0;
-            const assetUL = assetActionable.reduce((sum: number, h) => {
-              if (h.status === 'WIN_TP1') return sum + 1;
-              if (h.status === 'WIN_TP2') return sum + 2;
-              if (h.status === 'WIN_TP3' || h.status === 'WIN') return sum + 3;
-              if (h.status === 'LOSS') return sum - 1;
-              return sum;
-            }, 0);
+            
             const isActive = selectedAssets.has(assetStr);
             const noFilter = selectedAssets.size === 0;
 
             return (
               <motion.div
                 key={assetStr}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => toggleAssetFilter(assetStr)}
-                className={`flex flex-col gap-1 p-3 rounded-lg min-w-[120px] cursor-pointer select-none transition-all duration-200 border ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer select-none transition-all duration-200 border text-xs font-medium ${
                   isActive
-                    ? 'border-primary bg-primary/10 shadow-[0_0_15px_hsl(var(--primary)/0.3)] ring-1 ring-primary/40'
+                    ? 'border-primary bg-primary/20 text-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
                     : noFilter
-                      ? 'border-transparent bg-secondary/30 hover:border-muted-foreground/20 hover:bg-secondary/50'
-                      : 'border-transparent bg-secondary/10 opacity-40 hover:opacity-70'
+                      ? 'border-border/40 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      : 'border-transparent bg-secondary/5 text-muted-foreground/40'
                 }`}
               >
-                <span className={`text-xs font-semibold transition-colors ${isActive ? 'text-primary' : ''}`}>{assetStr}</span>
-                <span className={`text-lg font-bold ${assetWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                  {totalFinished > 0 ? `${assetWinRate.toFixed(1)}%` : '-'}
-                </span>
-                <span className="text-[10px] text-muted-foreground">({assetWins}W / {assetLosses}L{assetNeutrals > 0 ? ` / ${assetNeutrals}N` : ''})</span>
-                <span className={`text-[10px] font-semibold ${assetUL > 0 ? 'text-emerald-400' : assetUL < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                  UL: {assetUL > 0 ? `+${assetUL}` : assetUL}
+                <span>{assetStr}</span>
+                <span className={`font-bold ${assetWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                  {totalFinished > 0 ? `${assetWinRate.toFixed(0)}%` : '-'}
                 </span>
               </motion.div>
             );

@@ -7,7 +7,15 @@ param (
 
 Write-Host "`n🚀 Iniciando Deploy Global de Katon AI..." -ForegroundColor Cyan
 
-# 1. Frontend & Vercel Sync (GitHub)
+# 1. Atualizar Assinatura de Build (v2.1)
+$buildHash = git rev-parse --short HEAD
+if ($LASTEXITCODE -ne 0) { $buildHash = "DEV-BUILD" }
+$buildTime = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+$jsonContent = "{`n  `"version`": `"v2.1`",`n  `"buildTime`": `"$buildTime`",`n  `"buildHash`": `"$buildHash`"`n}"
+$jsonContent | Set-Content -Path "src/version.json" -Encoding UTF8
+Write-Host "✅ Assinatura de Build Gerada: $buildHash @ $buildTime" -ForegroundColor Green
+
+# 2. Frontend & Vercel Sync (GitHub)
 Write-Host "`n📦 Iniciando Sincronização com Vercel (Git Push -> main)..." -ForegroundColor Yellow
 
 # Verifica o status atual do git

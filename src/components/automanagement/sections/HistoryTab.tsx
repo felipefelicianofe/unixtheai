@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw, Trash2, ChevronDown, ChevronUp, Clock, Minus, Target } from "lucide-react";
+import { RefreshCw, Trash2, ChevronDown, ChevronUp, Clock, Minus, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -95,168 +95,140 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               }
 
               return (
-                <div 
-                  key={h.id} 
-                  className={`p-4 rounded-xl border border-muted/30 bg-background/40 transition-all ${isExpanded ? 'ring-1 ring-primary/40 shadow-lg' : 'hover:bg-background/60 shadow-sm'}`}
+                <motion.div
+                  key={h.id}
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+                    isNeutral ? 'border-muted-foreground/10 bg-muted/5' :
+                    (h.status?.startsWith('WIN') ? 'border-green-500/10 bg-green-500/5' : 
+                     h.status === 'LOSS' ? 'border-red-500/10 bg-red-500/5' : 
+                     'border-border/40 bg-background/30 hover:bg-background/50')
+                  } ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg' : ''}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-[150px]">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-lg">{h.asset}</span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge variant="secondary" className="px-1 text-[9px] uppercase">{h.timeframe}</Badge>
-                          <span className="text-[10px] text-muted-foreground font-mono">
-                            {new Date(h.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                  {/* MODO COMPACTO (LINHA ÚNICA) */}
+                  <div 
+                    className="flex items-center justify-between p-3 cursor-pointer group" 
+                    onClick={() => setExpandedRowId(isExpanded ? null : h.id)}
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Ativo e Direção */}
+                      <div className="flex items-center gap-2 min-w-[120px]">
+                        {isNeutral ? (
+                          <div className="w-8 h-8 rounded bg-muted/20 flex items-center justify-center">
+                            <Minus className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        ) : isLong ? (
+                          <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-green-500" />
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center">
+                            <TrendingDown className="w-4 h-4 text-red-500" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-bold text-sm leading-tight">{h.asset}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">{h.timeframe} • {new Date(h.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-6 flex-1 flex-wrap justify-end md:justify-start">
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Status</span>
-                        <StatusBadge status={h.status} closeReason={h.close_reason} closedAt={h.closed_at} />
-                      </div>
-
+                      {/* Preço e Lucro (Apenas se não for Neutro) */}
                       {!isNeutral && (
                         <>
-                          <div className="flex flex-col min-w-[80px]">
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Sinal</span>
-                            <span className={`text-sm font-bold ${isLong ? 'text-green-500' : 'text-red-500'}`}>
-                              {h.signal || (isLong ? 'COMPRA' : 'VENDA')}
-                            </span>
+                          <div className="hidden md:flex flex-col min-w-[100px]">
+                            <span className="text-[10px] text-muted-foreground uppercase">Preço</span>
+                            <span className="text-sm font-medium font-mono">${formatPrice(displayPrice)}</span>
                           </div>
+                          
                           <div className="flex flex-col min-w-[80px]">
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Entrada</span>
-                            <span className="text-sm font-mono font-semibold">{formatPrice(entryPrice)}</span>
-                          </div>
-                          <div className="flex flex-col min-w-[80px]">
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">P. Atual</span>
-                            <span className="text-sm font-mono font-semibold">{formatPrice(displayPrice)}</span>
-                          </div>
-                          <div className="flex flex-col min-w-[80px]">
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">P&L Virtual</span>
-                            <span className={`text-sm font-bold font-mono ${pnl > 0 ? 'text-green-500' : pnl < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                              {pnl > 0 ? '+' : ''}{pnl.toFixed(2)}%
+                            <span className="text-[10px] text-muted-foreground uppercase">P&L Virtual</span>
+                            <span className={`text-sm font-bold font-mono ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                              {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%` : '--'}
                             </span>
                           </div>
                         </>
                       )}
 
+                      {/* Confiança Compacta (Neutro) */}
                       {isNeutral && h.final_confidence_pct && (
-                         <div className="flex flex-col">
-                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Confiança</span>
-                            <span className="text-xs font-semibold">{h.final_confidence_pct}% | {h.trend || '—'}</span>
+                         <div className="hidden lg:block flex-1 max-w-[400px]">
+                            <p className="text-xs text-muted-foreground truncate italic">IA Confiança: {h.final_confidence_pct}% | {h.trend || 'Estável'}</p>
                          </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                       <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className={`h-8 transition-colors ${isExpanded ? 'bg-primary/10 text-primary' : ''}`}
-                        onClick={() => setExpandedRowId(isExpanded ? null : h.id)}
-                      >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        <span className="ml-2 text-xs">Detalhes</span>
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                        onClick={() => deleteHistoryMutation.mutate(h.id)}
-                        disabled={deleteHistoryMutation.isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={h.status} closeReason={h.close_reason} closedAt={h.closed_at} />
+                      
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-20 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); deleteHistoryMutation.mutate(h.id); }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                      </div>
                     </div>
                   </div>
 
-                  {isExpanded && (
-                    <motion.div 
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="mt-4 pt-4 border-t border-border/20 space-y-4 overflow-hidden"
-                    >
-                      {/* Dashboard with Targets */}
+                  {/* MODO EXPANDIDO (DETALHES TÉCNICOS) */}
+                  <motion.div
+                    initial={false}
+                    animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
+                    className="overflow-hidden bg-muted/5"
+                  >
+                    <div className="p-4 space-y-4 border-t border-border/10">
                       {!isNeutral && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-3">
-                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Progresso dos Alvos</h4>
-                            <div className="space-y-1.5">
-                              <DistanceBar label="TP1" distancePct={safeNum(h.distance_tp1_pct)} isHit={!!h.tp1_hit_time} hitTime={h.tp1_hit_time} color="text-emerald-400" />
-                              <DistanceBar label="TP2" distancePct={safeNum(h.distance_tp2_pct)} isHit={!!h.tp2_hit_time} hitTime={h.tp2_hit_time} color="text-green-400" />
-                              <DistanceBar label="TP3" distancePct={safeNum(h.distance_tp3_pct)} isHit={!!h.tp3_hit_time} hitTime={h.tp3_hit_time} color="text-green-500" />
-                              <DistanceBar label="SL" distancePct={safeNum(h.distance_sl_pct)} isHit={!!h.loss_hit_time} hitTime={h.loss_hit_time} color="text-red-500" />
-                            </div>
+                          {/* Targets Monitoring */}
+                          <div className="space-y-2">
+                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Monitoramento de Alvos</h4>
+                             <div className="space-y-1.5 px-1">
+                                <DistanceBar label="TP1" distancePct={safeNum(h.distance_tp1_pct)} isHit={!!h.tp1_hit_time} hitTime={h.tp1_hit_time} color="text-emerald-400" />
+                                <DistanceBar label="TP2" distancePct={safeNum(h.distance_tp2_pct)} isHit={!!h.tp2_hit_time} hitTime={h.tp2_hit_time} color="text-green-400" />
+                                <DistanceBar label="TP3" distancePct={safeNum(h.distance_tp3_pct)} isHit={!!h.tp3_hit_time} hitTime={h.tp3_hit_time} color="text-green-500" />
+                                <DistanceBar label="SL" distancePct={safeNum(h.distance_sl_pct)} isHit={!!h.loss_hit_time} hitTime={h.loss_hit_time} color="text-red-500" />
+                             </div>
                           </div>
-                          
-                          <div className="space-y-3">
-                            <h4 className="text-xs font-bold uppercase text-muted-foreground">Informações Adicionais</h4>
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="p-2 rounded bg-muted/20 border border-muted/30">
-                                <span className="text-[10px] text-muted-foreground block mb-1">Confiança IA</span>
-                                <span className="text-sm font-bold text-primary">{h.final_confidence_pct}%</span>
-                              </div>
-                              <div className="p-2 rounded bg-muted/20 border border-muted/30">
-                                <span className="text-[10px] text-muted-foreground block mb-1">Tendência</span>
-                                <span className="text-sm font-bold">{h.trend || '—'}</span>
-                              </div>
-                              {h.close_reason && (
-                                <div className="p-2 rounded bg-muted/20 border border-muted/30 col-span-2">
-                                  <span className="text-[10px] text-muted-foreground block mb-1">Motivo de Fechamento</span>
-                                  <span className="text-sm font-bold text-amber-500">{formatCloseReason(h.close_reason)}</span>
-                                  {h.closed_at && (
-                                    <span className="text-[10px] text-muted-foreground ml-2">
-                                      {new Date(h.closed_at).toLocaleString('pt-BR')}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                            {h.last_verified_at && (
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-2">
-                                <Clock className="w-3 h-3" />
-                                Última verificação: {new Date(h.last_verified_at).toLocaleString('pt-BR')}
-                              </div>
-                            )}
+
+                          {/* Info Grid */}
+                          <div className="space-y-2">
+                             <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Métricas Adicionais</h4>
+                             <div className="grid grid-cols-2 gap-3">
+                               <div className="p-2 rounded bg-background/40 border border-border/20">
+                                 <div className="text-[9px] text-muted-foreground uppercase">IA Confiança</div>
+                                 <div className="text-sm font-mono font-bold text-primary">{h.final_confidence_pct}%</div>
+                               </div>
+                               <div className="p-2 rounded bg-background/40 border border-border/20">
+                                 <div className="text-[9px] text-muted-foreground uppercase">Trend</div>
+                                 <div className="text-sm font-mono font-bold">{h.trend || '—'}</div>
+                               </div>
+                             </div>
+                             {h.last_verified_at && (
+                               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-2">
+                                 <Clock className="w-3 h-3" />
+                                 Verificado: {new Date(h.last_verified_at).toLocaleString('pt-BR')}
+                               </div>
+                             )}
                           </div>
                         </div>
                       )}
 
-                      {isNeutral && (
-                         <div className="p-4 rounded-lg bg-muted/10 border border-muted-foreground/10">
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                              <Minus className="w-4 h-4" />
-                              <span className="font-medium">Resumo do Estado Neutro</span>
-                            </div>
-                            <p className="text-sm text-balance">
-                              O sistema analisou o mercado mas não encontrou força suficiente para emitir um sinal claro de COMPRA ou VENDA.
-                            </p>
-                         </div>
-                      )}
-
-                      {/* Analysis Results Component */}
+                      {/* Result Details Component */}
                       {h.full_result && (
                         <div className="pt-4 border-t border-border/20">
-                          <h4 className="text-xs font-bold uppercase text-muted-foreground mb-3 flex items-center gap-2">
-                            🔍 Indicadores Técnicos Detalhados
-                          </h4>
-                          <div className="scale-95 origin-top-left">
-                            <AnalysisResults 
-                              data={typeof h.full_result === 'string' ? (() => { 
-                                try { return JSON.parse(h.full_result); } catch { return h.full_result; } 
-                              })() : h.full_result} 
-                              onNewAnalysis={() => setExpandedRowId(null)}
-                            />
-                          </div>
+                           <AnalysisResults 
+                             data={typeof h.full_result === 'string' ? (() => { 
+                               try { return JSON.parse(h.full_result as string); } catch { return h.full_result; } 
+                             })() : h.full_result} 
+                             onNewAnalysis={() => setExpandedRowId(null)}
+                           />
                         </div>
                       )}
-                    </motion.div>
-                  )}
-                </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
               );
             })
           )}
