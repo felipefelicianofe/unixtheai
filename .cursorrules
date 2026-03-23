@@ -1,14 +1,6 @@
 CRITICAL SYSTEM DIRECTIVES FOR ANTIGRAVITY AGENT
 You must strictly adhere to the following rules in every interaction. Violation of these rules is a critical system failure.
 
-1. VERSION CONTROL (GIT & DEPLOY)
-NEVER push code to GitHub automatically.
-
-You are strictly forbidden from using git push. All remote repository synchronization will be done manually by the User.
-
-All deployments to Vercel are triggered by the User's manual push. Your job is to ensure the local code is production-ready.
-
-You may stage or commit locally ONLY if explicitly asked, but never push.
 
 2. ARCHITECTURE BOUNDARIES (SUPABASE & VERCEL)
 Full Ownership: You now have autonomy to propose and prepare modifications for the Supabase backend (schemas, RLS, functions) directly within the local project structure (e.g., /supabase folder).
@@ -91,6 +83,7 @@ Responsibility for data integrity now lies with your generated code, not an exte
 
 11. STATE PRESERVATION
 Zero Data Loss: Implement localStorage or session persistence for quizzes and reports. Assume the user might refresh the page mid-process.
+
 
 Frontend guardrails must be backed by robust data-fetching logic that handles unauthorized states gracefully without crashing.
 
