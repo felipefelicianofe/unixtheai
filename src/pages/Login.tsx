@@ -42,22 +42,32 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Erro no login",
+          description: error.message,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Wait a moment for auth state to propagate
+      setTimeout(() => {
+        setLoading(false);
+      }, 1500);
+    } catch (networkError) {
+      console.error('[Login] Erro de rede (Failed to Fetch):', networkError);
       toast({
-        title: "Erro no login",
-        description: error.message,
+        title: "Erro de Conexão",
+        description: "Falha ao conectar com o Supabase. Verifique sua conexão ou a configuração de ambiente (Vercel).",
         variant: "destructive",
       });
       setLoading(false);
-      return;
     }
-
-    // Wait a moment for auth state to propagate
-    setTimeout(() => {
-      setLoading(false);
-    }, 1500);
   };
 
   return (
