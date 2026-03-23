@@ -493,47 +493,36 @@ const AutoTesteAdmin = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {Array.from(new Set(history?.map((h) => h.asset) || [])).map(asset => {
                 const assetStr = asset as string;
                 const assetAll = history?.filter((h) => h.asset === asset) || [];
                 const assetActionable = assetAll.filter((h) => !isNeutralEntry(h));
                 const assetWins = assetActionable.filter((h) => h.status?.startsWith('WIN')).length;
                 const assetLosses = assetActionable.filter((h) => h.status === 'LOSS').length;
-                const assetNeutrals = assetAll.filter((h) => isNeutralEntry(h)).length;
                 const totalFinished = assetWins + assetLosses;
                 const assetWinRate = totalFinished > 0 ? (assetWins / totalFinished) * 100 : 0;
-                const assetUL = assetActionable.reduce((sum: number, h: TestHistoryRow) => {
-                  if (h.status === 'WIN_TP1') return sum + 1;
-                  if (h.status === 'WIN_TP2') return sum + 2;
-                  if (h.status === 'WIN_TP3' || h.status === 'WIN') return sum + 3;
-                  if (h.status === 'LOSS') return sum - 1;
-                  return sum;
-                }, 0);
+                
                 const isActive = selectedAssets.has(assetStr);
                 const noFilter = selectedAssets.size === 0;
 
                 return (
                   <motion.div
                     key={assetStr}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => toggleAssetFilter(assetStr)}
-                    className={`flex flex-col gap-1 p-3 rounded-lg min-w-[120px] cursor-pointer select-none transition-all duration-200 border ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full cursor-pointer select-none transition-all duration-200 border text-xs font-medium ${
                       isActive
-                        ? 'border-primary bg-primary/10 shadow-[0_0_15px_hsl(var(--primary)/0.3)] ring-1 ring-primary/40'
+                        ? 'border-primary bg-primary/20 text-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.2)]'
                         : noFilter
-                          ? 'border-transparent bg-secondary/30 hover:border-muted-foreground/20 hover:bg-secondary/50'
-                          : 'border-transparent bg-secondary/10 opacity-40 hover:opacity-70'
+                          ? 'border-border/40 bg-secondary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                          : 'border-transparent bg-secondary/5 text-muted-foreground/40'
                     }`}
                   >
-                    <span className={`text-xs font-semibold transition-colors ${isActive ? 'text-primary' : ''}`}>{assetStr}</span>
-                    <span className={`text-lg font-bold ${assetWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                      {totalFinished > 0 ? `${assetWinRate.toFixed(1)}%` : '-'}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">({assetWins}W / {assetLosses}L{assetNeutrals > 0 ? ` / ${assetNeutrals}N` : ''})</span>
-                    <span className={`text-[10px] font-semibold ${assetUL > 0 ? 'text-emerald-400' : assetUL < 0 ? 'text-red-400' : 'text-muted-foreground'}`}>
-                      UL: {assetUL > 0 ? `+${assetUL}` : assetUL}
+                    <span>{assetStr}</span>
+                    <span className={`font-bold ${assetWinRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                      {totalFinished > 0 ? `${assetWinRate.toFixed(0)}%` : '-'}
                     </span>
                   </motion.div>
                 );
@@ -699,156 +688,146 @@ const AutoTesteAdmin = () => {
                       return (
                         <motion.div
                           key={h.id}
+                          layout
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className={`rounded-lg border p-4 transition-colors ${
-                            isNeutral ? 'border-muted-foreground/15 bg-muted/5 opacity-80' :
-                            isWin ? 'border-green-500/20 bg-green-500/5' : 
-                            isLoss ? 'border-red-500/20 bg-red-500/5' : 
-                            'border-border bg-background/50'
-                          }`}
+                          className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+                            isNeutral ? 'border-muted-foreground/10 bg-muted/5' :
+                            isWin ? 'border-green-500/10 bg-green-500/5' : 
+                            isLoss ? 'border-red-500/10 bg-red-500/5' : 
+                            'border-border/40 bg-background/30 hover:bg-background/50'
+                          } ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg' : ''}`}
                         >
-                          {/* Header row */}
-                          <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpandedRowId(isExpanded ? null : h.id)}>
-                            <div className="flex items-center gap-3">
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-lg">{h.asset}</span>
-                                  <Badge variant="secondary" className="text-[10px]">{h.timeframe}</Badge>
-                                  {isNeutral ? (
+                          {/* MODO COMPACTO (LINHA ÚNICA) */}
+                          <div 
+                            className="flex items-center justify-between p-3 cursor-pointer group" 
+                            onClick={() => setExpandedRowId(isExpanded ? null : h.id)}
+                          >
+                            <div className="flex items-center gap-4 flex-1">
+                              {/* Ativo e Direção */}
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                {isNeutral ? (
+                                  <div className="w-8 h-8 rounded bg-muted/20 flex items-center justify-center">
                                     <Minus className="w-4 h-4 text-muted-foreground" />
-                                  ) : isLong ? (
+                                  </div>
+                                ) : isLong ? (
+                                  <div className="w-8 h-8 rounded bg-green-500/10 flex items-center justify-center">
                                     <TrendingUp className="w-4 h-4 text-green-500" />
-                                  ) : (
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-red-500/10 flex items-center justify-center">
                                     <TrendingDown className="w-4 h-4 text-red-500" />
-                                  )}
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-bold text-sm leading-tight">{h.asset}</div>
+                                  <div className="text-[10px] text-muted-foreground uppercase">{h.timeframe} • {new Date(h.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</div>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground">
-                                  {new Date(h.created_at).toLocaleString('pt-BR')}
-                                </span>
                               </div>
+
+                              {/* Preço e Lucro (Apenas se não for Neutro) */}
+                              {!isNeutral && (
+                                <>
+                                  <div className="hidden md:flex flex-col min-w-[100px]">
+                                    <span className="text-[10px] text-muted-foreground uppercase">Preço</span>
+                                    <span className="text-sm font-medium font-mono">${formatPrice(h.current_price || h.entry_price)}</span>
+                                  </div>
+                                  
+                                  <div className="flex flex-col min-w-[80px]">
+                                    <span className="text-[10px] text-muted-foreground uppercase">P&L Virtual</span>
+                                    <span className={`text-sm font-bold font-mono ${pnl && pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                      {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%` : '--'}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* Sumário Executivo Compacto */}
+                              {isNeutral && h.executive_summary && (
+                                <div className="hidden lg:block flex-1 max-w-[400px]">
+                                  <p className="text-xs text-muted-foreground truncate italic">"{h.executive_summary}"</p>
+                                </div>
+                              )}
                             </div>
 
-                            <div className="flex items-center gap-4">
-                              {/* Virtual P&L — hidden for NEUTRAL */}
-                              {!isNeutral && pnl !== null && pnl !== undefined && isPending && (
-                                <div className={`text-right ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                  <div className="text-sm font-bold">{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}%</div>
-                                  <div className="text-[10px] text-muted-foreground">P&L {leverage > 1 ? `${leverage}x` : 'Virtual'}</div>
-                                  {leverage > 1 && rawPnl !== null && (
-                                    <div className="text-[9px] text-muted-foreground/60">({rawPnl >= 0 ? '+' : ''}{rawPnl.toFixed(2)}% s/ alav.)</div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Current price — hidden for NEUTRAL */}
-                              {!isNeutral && h.current_price && isPending && (
-                                <div className="text-right">
-                                  <div className="text-sm font-semibold">${formatPrice(h.current_price)}</div>
-                                  <div className="text-[10px] text-muted-foreground">Preço Atual</div>
-                                </div>
-                              )}
-
-                              {/* Neutral reason summary */}
-                              {isNeutral && h.executive_summary && (
-                                <div className="text-right max-w-[200px]">
-                                  <div className="text-[10px] text-muted-foreground line-clamp-2">{h.executive_summary}</div>
-                                </div>
-                              )}
-
+                            <div className="flex items-center gap-3">
                               <StatusBadge status={h.status} closeReason={h.close_reason} closedAt={h.closed_at} />
-
+                              
                               <div className="flex items-center gap-1">
-                                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-500"
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-20 group-hover:opacity-100 transition-opacity"
                                   onClick={(e) => { e.stopPropagation(); deleteHistoryMutation.mutate(h.id); }}>
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
+                                {isExpanded ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                               </div>
                             </div>
                           </div>
 
-                          {/* Price levels & distance bars — only for actionable signals */}
-                          {!isNeutral && (
-                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* Left: Price levels */}
-                              <div className="grid grid-cols-4 gap-2 text-xs">
-                                <div className="flex flex-col p-2 rounded bg-muted/20">
-                                  <span className="text-muted-foreground">Entrada</span>
-                                  <span className="font-semibold">{formatPrice(h.entry_price)}</span>
-                                </div>
-                                <div className="flex flex-col p-2 rounded bg-green-500/10">
-                                  <span className="text-green-500">TP1</span>
-                                  <span className="font-semibold">{formatPrice(h.take_profit_1)}</span>
-                                </div>
-                                <div className="flex flex-col p-2 rounded bg-green-500/10">
-                                  <span className="text-green-500">TP2</span>
-                                  <span className="font-semibold">{h.take_profit_2 ? formatPrice(h.take_profit_2) : '-'}</span>
-                                </div>
-                                <div className="flex flex-col p-2 rounded bg-red-500/10">
-                                  <span className="text-red-500">SL</span>
-                                  <span className="font-semibold">{formatPrice(h.stop_loss)}</span>
-                                </div>
-                              </div>
+                          {/* MODO EXPANDIDO (DETALHES TÉCNICOS) */}
+                          <motion.div
+                            initial={false}
+                            animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
+                            className="overflow-hidden bg-muted/5"
+                          >
+                            <div className="p-4 border-t border-border/10 space-y-4">
+                              {!isNeutral && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* Price levels */}
+                                  <div className="space-y-2">
+                                    <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Níveis de Execução</h4>
+                                    <div className="grid grid-cols-4 gap-2">
+                                      <div className="p-2 rounded bg-background/40 border border-border/20">
+                                        <div className="text-[9px] text-muted-foreground uppercase">Entrada</div>
+                                        <div className="text-xs font-mono font-bold">${formatPrice(h.entry_price)}</div>
+                                      </div>
+                                      <div className="p-2 rounded bg-green-500/5 border border-green-500/20">
+                                        <div className="text-[9px] text-green-500/70 uppercase">TP1</div>
+                                        <div className="text-xs font-mono font-bold text-green-500">${formatPrice(h.take_profit_1)}</div>
+                                      </div>
+                                      <div className="p-2 rounded bg-green-500/5 border border-green-500/20">
+                                        <div className="text-[9px] text-green-500/70 uppercase">TP2</div>
+                                        <div className="text-xs font-mono font-bold text-green-500">${h.take_profit_2 ? formatPrice(h.take_profit_2) : '-'}</div>
+                                      </div>
+                                      <div className="p-2 rounded bg-red-500/5 border border-red-500/20">
+                                        <div className="text-[9px] text-red-500/70 uppercase">SL</div>
+                                        <div className="text-xs font-mono font-bold text-red-500">${formatPrice(h.stop_loss)}</div>
+                                      </div>
+                                    </div>
+                                  </div>
 
-                              {/* Right: Distance bars */}
-                              <div className="space-y-1.5">
-                                <DistanceBar label="TP1" distancePct={h.distance_tp1_pct} isHit={!!h.tp1_hit_time} hitTime={h.tp1_hit_time} color="text-emerald-400" />
-                                <DistanceBar label="TP2" distancePct={h.distance_tp2_pct} isHit={!!h.tp2_hit_time} hitTime={h.tp2_hit_time} color="text-green-400" />
-                                <DistanceBar label="TP3" distancePct={h.distance_tp3_pct} isHit={!!h.tp3_hit_time} hitTime={h.tp3_hit_time} color="text-green-500" />
-                                <DistanceBar label="SL" distancePct={h.distance_sl_pct} isHit={!!h.loss_hit_time} hitTime={h.loss_hit_time} color="text-red-500" />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Neutral: show simplified info */}
-                          {isNeutral && (
-                            <div className="mt-3 p-3 rounded-lg bg-muted/10 border border-muted-foreground/10">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Minus className="w-3.5 h-3.5" />
-                                <span className="font-medium">Sinal Neutro — Sem operação sugerida</span>
-                              </div>
-                              {h.final_confidence_pct && (
-                                <div className="text-[10px] text-muted-foreground mt-1">
-                                  Confiança: {h.final_confidence_pct}% | Tendência: {h.trend || '—'}
+                                  {/* Visual Progress */}
+                                  <div className="space-y-2">
+                                    <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Monitoramento de Alvos</h4>
+                                    <div className="space-y-1.5 px-1">
+                                      <DistanceBar label="TP1" distancePct={h.distance_tp1_pct} isHit={!!h.tp1_hit_time} hitTime={h.tp1_hit_time} color="text-emerald-400" />
+                                      <DistanceBar label="TP2" distancePct={h.distance_tp2_pct} isHit={!!h.tp2_hit_time} hitTime={h.tp2_hit_time} color="text-green-400" />
+                                      <DistanceBar label="TP3" distancePct={h.distance_tp3_pct} isHit={!!h.tp3_hit_time} hitTime={h.tp3_hit_time} color="text-green-500" />
+                                      <DistanceBar label="SL" distancePct={h.distance_sl_pct} isHit={!!h.loss_hit_time} hitTime={h.loss_hit_time} color="text-red-500" />
+                                    </div>
+                                  </div>
                                 </div>
                               )}
-                            </div>
-                          )}
 
-                          {/* Close reason info — shown for finalized entries */}
-                          {!isNeutral && h.closed_at && h.close_reason && (
-                            <div className={`mt-2 flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-md ${
-                              h.close_reason === 'BREAKEVEN' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' :
-                              h.close_reason === 'TP3' ? 'bg-green-500/10 border border-green-500/20 text-green-400' :
-                              h.close_reason === 'SL' ? 'bg-red-500/10 border border-red-500/20 text-red-400' :
-                              'bg-muted/20 border border-border text-muted-foreground'
-                            }`}>
-                              <span className="font-semibold">
-                                {h.close_reason === 'BREAKEVEN' ? '🔄' : h.close_reason === 'TP3' ? '🏆' : h.close_reason === 'SL' ? '🛑' : '📌'}
-                              </span>
-                              <span>Fechado: <strong>{formatCloseReason(h.close_reason)}</strong></span>
-                              <span className="text-muted-foreground">—</span>
-                              <span className="text-muted-foreground">
-                                {new Date(h.closed_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                              {/* Executive Summary in expanded view */}
+                              {h.executive_summary && (
+                                <div className="p-3 rounded-lg bg-background/20 border border-border/10">
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <Brain className="w-3.5 h-3.5 text-primary" />
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Análise Contextual</span>
+                                  </div>
+                                  <p className="text-xs text-foreground/80 leading-relaxed italic">
+                                    {h.executive_summary}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-2 border-t border-border/5">
+                                <span>ID: {h.id.slice(0, 8)}...</span>
+                                <span>Criado: {new Date(h.created_at).toLocaleString('pt-BR')}</span>
+                                {h.closed_at && <span>Finalizado: {new Date(h.closed_at).toLocaleString('pt-BR')}</span>}
+                              </div>
                             </div>
-                          )}
-
-                          {/* Verification timestamp */}
-                          {h.last_verified_at && !isNeutral && (
-                            <div className="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              Última verificação: {new Date(h.last_verified_at).toLocaleString('pt-BR')}
-                            </div>
-                          )}
-
-                          {/* Expanded: full analysis */}
-                          {isExpanded && h.full_result && (
-                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} className="mt-4 pt-4 border-t border-border/50">
-                              <AnalysisResults data={h.full_result as unknown as AnalysisResult} onNewAnalysis={() => setExpandedRowId(null)} />
-                            </motion.div>
-                          )}
+                          </motion.div>
                         </motion.div>
                       );
                     })

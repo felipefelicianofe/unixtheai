@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
@@ -9,13 +9,13 @@ import {
   X,
   Zap,
   CheckCircle2,
-  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import type { AssetMonitorState, ActiveSignal, MonitorStatus } from "@/hooks/useMonitoringEngine";
+import type { AssetMonitorState, MonitorStatus } from "@/hooks/useMonitoringEngine";
 
 interface ActiveSignalCardProps {
   state: AssetMonitorState;
@@ -48,11 +48,11 @@ function calculatePnl(
 function statusLabel(status: MonitorStatus): { text: string; color: string; icon: React.ReactNode } {
   switch (status) {
     case "SIGNAL_ACTIVE":
-      return { text: "Sinal Ativo", color: "text-amber-400 border-amber-400/30 bg-amber-400/10", icon: <Zap className="w-3 h-3" /> };
+      return { text: "Monitorando", color: "text-amber-400 border-amber-400/30 bg-amber-400/10", icon: <Zap className="w-3 h-3" /> };
     case "TP1_HIT":
-      return { text: "TP1 Atingido • SL → Breakeven", color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
+      return { text: "TP1 Hit • BE", color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
     case "TP2_HIT":
-      return { text: "TP2 Atingido • Buscando TP3", color: "text-green-400 border-green-400/30 bg-green-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
+      return { text: "TP2 Hit • Buscando TP3", color: "text-green-400 border-green-400/30 bg-green-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
     default:
       return { text: status, color: "text-muted-foreground border-muted-foreground/30", icon: null };
   }
@@ -65,15 +65,14 @@ function distancePct(
   direction: "LONG" | "SHORT"
 ): number {
   if (direction === "LONG") {
-    // For LONG: how far is current from target (positive = not reached yet)
     return ((target - current) / current) * 100;
   } else {
-    // For SHORT: target is below entry, "reached" when price drops to target
     return ((current - target) / current) * 100;
   }
 }
 
 const ActiveSignalCard: React.FC<ActiveSignalCardProps> = ({ state, onManualClose }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { activeSignal, currentPrice, status, asset } = state;
   if (!activeSignal) return null;
 
@@ -83,271 +82,158 @@ const ActiveSignalCard: React.FC<ActiveSignalCardProps> = ({ state, onManualClos
   const statusInfo = statusLabel(status);
   const isLong = sig.direction === "LONG";
 
-  // Distance calculations
   const distTP1 = distancePct(price, sig.takeProfit1, sig.entryPrice, sig.direction);
   const distTP2 = sig.takeProfit2 ? distancePct(price, sig.takeProfit2, sig.entryPrice, sig.direction) : null;
   const distTP3 = sig.takeProfit3 ? distancePct(price, sig.takeProfit3, sig.entryPrice, sig.direction) : null;
   const distSL = distancePct(price, sig.currentStopLoss, sig.entryPrice, sig.direction);
 
-  // Progress for TP levels (100% = at target)
   const tp1Progress = sig.tp1Hit ? 100 : Math.max(0, Math.min(100, 100 - Math.abs(distTP1) * 10));
   const tp2Progress = sig.tp2Hit ? 100 : (distTP2 !== null ? Math.max(0, Math.min(100, 100 - Math.abs(distTP2) * 10)) : 0);
   const tp3Progress = distTP3 !== null ? Math.max(0, Math.min(100, 100 - Math.abs(distTP3) * 10)) : 0;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+        isLong ? 'border-green-500/10 bg-green-500/5' : 'border-red-500/10 bg-red-500/5'
+      } ${isExpanded ? 'ring-1 ring-primary/20 shadow-lg' : ''}`}
     >
-      <Card
-        className={`glass-panel overflow-hidden transition-all duration-300 ${
-          isLong
-            ? "border-green-500/30 bg-gradient-to-br from-green-500/5 to-transparent"
-            : "border-red-500/30 bg-gradient-to-br from-red-500/5 to-transparent"
-        }`}
+      {/* LINHA COMPACTA (MASTER) */}
+      <div 
+        className="flex items-center justify-between p-3 cursor-pointer group"
+        onClick={() => setIsExpanded(!isExpanded)}
       >
-        {/* Animated top bar */}
-        <div
-          className={`h-1 w-full ${
-            isLong ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-red-500 to-orange-400"
-          }`}
-        />
-
-        <CardHeader className="pb-3 pt-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Direction icon */}
-              <motion.div
-                animate={{ rotate: [0, 5, -5, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className={`p-2 rounded-lg ${
-                  isLong ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"
-                }`}
-              >
-                {isLong ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-              </motion.div>
-
-              <div>
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  {asset}
-                  <Badge variant="secondary" className="text-[10px]">
-                    {sig.timeframe}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] ${isLong ? "text-green-500 border-green-500/30" : "text-red-500 border-red-500/30"}`}
-                  >
-                    {isLong ? "LONG" : "SHORT"} {sig.leverage > 1 ? `${sig.leverage}x` : ""}
-                  </Badge>
-                </CardTitle>
-                <span className="text-[10px] text-muted-foreground">
-                  Sinal em {new Date(sig.signalTime).toLocaleString("pt-BR")}
-                </span>
-              </div>
+        <div className="flex items-center gap-4 flex-1">
+          {/* Asset Info */}
+          <div className="flex items-center gap-2 min-w-[120px]">
+            <div className={`w-8 h-8 rounded flex items-center justify-center ${isLong ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+              {isLong ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
             </div>
-
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={`text-[10px] ${statusInfo.color}`}>
-                {statusInfo.icon}
-                <span className="ml-1">{statusInfo.text}</span>
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                onClick={() => {
-                  if (confirm("Fechar este sinal manualmente?")) {
-                    onManualClose(asset);
-                  }
-                }}
-                title="Fechar sinal manualmente"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+            <div>
+              <div className="font-bold text-sm leading-tight">{asset}</div>
+              <div className="text-[10px] text-muted-foreground uppercase">{sig.timeframe} • {sig.leverage}x</div>
             </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-4">
-          {/* Price & P&L Row */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col p-3 rounded-lg bg-muted/20">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Preço Atual</span>
-              <span className="text-lg font-bold">${formatPrice(currentPrice)}</span>
-            </div>
-            <div className="flex flex-col p-3 rounded-lg bg-muted/20">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Entry</span>
-              <span className="text-lg font-semibold text-muted-foreground">
-                ${formatPrice(sig.entryPrice)}
-              </span>
-            </div>
-            <div
-              className={`flex flex-col p-3 rounded-lg ${
-                pnl.leveraged >= 0 ? "bg-green-500/10" : "bg-red-500/10"
-              }`}
+          {/* Current Price */}
+          <div className="hidden md:flex flex-col min-w-[100px]">
+            <span className="text-[10px] text-muted-foreground uppercase">Preço</span>
+            <span className="text-sm font-medium font-mono">${formatPrice(currentPrice)}</span>
+          </div>
+
+          {/* P&L Live */}
+          <div className="flex flex-col min-w-[80px]">
+            <span className="text-[10px] text-muted-foreground uppercase">P&L Live</span>
+            <span className={`text-sm font-bold font-mono ${pnl.leveraged >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {pnl.leveraged >= 0 ? '+' : ''}{pnl.leveraged.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Status & Actions */}
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className={`text-[10px] hidden sm:flex ${statusInfo.color}`}>
+            {statusInfo.text}
+          </Badge>
+
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-muted-foreground opacity-20 group-hover:opacity-100 transition-opacity hover:text-red-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`Encerrar ${asset} manualmente?`)) onManualClose(asset);
+              }}
             >
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                P&L {sig.leverage > 1 ? `${sig.leverage}x` : ""}
-              </span>
-              <span
-                className={`text-lg font-bold ${pnl.leveraged >= 0 ? "text-green-500" : "text-red-500"}`}
-              >
-                {pnl.leveraged >= 0 ? "+" : ""}
-                {pnl.leveraged.toFixed(2)}%
-              </span>
-              {sig.leverage > 1 && (
-                <span className="text-[9px] text-muted-foreground">
-                  ({pnl.raw >= 0 ? "+" : ""}{pnl.raw.toFixed(2)}% s/ alav.)
-                </span>
-              )}
-            </div>
+              <X className="w-4 h-4" />
+            </Button>
+            {isExpanded ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </div>
+        </div>
+      </div>
 
-          {/* Target Levels */}
-          <div className="grid grid-cols-4 gap-2 text-xs">
-            <div className="flex flex-col p-2 rounded bg-green-500/10 border border-green-500/20">
-              <span className="text-green-500 font-semibold">TP1</span>
-              <span className="font-semibold">{formatPrice(sig.takeProfit1)}</span>
-              {sig.tp1Hit && (
-                <span className="text-[9px] text-emerald-400">✓ Atingido</span>
-              )}
-            </div>
-            <div className="flex flex-col p-2 rounded bg-green-500/10 border border-green-500/20">
-              <span className="text-green-500 font-semibold">TP2</span>
-              <span className="font-semibold">{sig.takeProfit2 ? formatPrice(sig.takeProfit2) : "—"}</span>
-              {sig.tp2Hit && (
-                <span className="text-[9px] text-green-400">✓ Atingido</span>
-              )}
-            </div>
-            <div className="flex flex-col p-2 rounded bg-green-500/10 border border-green-500/20">
-              <span className="text-green-500 font-semibold">TP3</span>
-              <span className="font-semibold">{sig.takeProfit3 ? formatPrice(sig.takeProfit3) : "—"}</span>
-            </div>
-            <div className={`flex flex-col p-2 rounded border ${
-              sig.tp1Hit
-                ? "bg-primary/10 border-primary/20"
-                : "bg-red-500/10 border-red-500/20"
-            }`}>
-              <span className={`font-semibold ${sig.tp1Hit ? "text-primary" : "text-red-500"}`}>
-                {sig.tp1Hit ? "BE" : "SL"}
-              </span>
-              <span className="font-semibold">{formatPrice(sig.currentStopLoss)}</span>
-              {sig.tp1Hit && (
-                <span className="text-[9px] text-primary">Breakeven</span>
-              )}
-            </div>
-          </div>
-
-          {/* Distance Bars */}
-          <div className="space-y-2">
-            {/* TP1 */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold w-8 text-emerald-400">TP1</span>
-              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full ${sig.tp1Hit ? "bg-emerald-400" : "bg-emerald-400/40"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${tp1Progress}%` }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-              <span className={`text-[10px] min-w-[50px] text-right ${sig.tp1Hit ? "text-emerald-400 font-bold" : "text-muted-foreground"}`}>
-                {sig.tp1Hit ? "✓ Hit" : `${Math.abs(distTP1).toFixed(2)}%`}
-              </span>
-            </div>
-
-            {/* TP2 */}
-            {sig.takeProfit2 && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-semibold w-8 text-green-400">TP2</span>
-                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                  <motion.div
-                    className={`h-full rounded-full ${sig.tp2Hit ? "bg-green-400" : "bg-green-400/40"}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${tp2Progress}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
+      {/* MODO EXPANDIDO (DETAILS) */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden bg-muted/5 border-t border-border/10"
+          >
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Levels */}
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Metas da Operação</h4>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div className="p-2 rounded bg-background/40 border border-border/20">
+                      <div className="text-[9px] text-muted-foreground uppercase">Entry</div>
+                      <div className="text-xs font-mono font-bold">${formatPrice(sig.entryPrice)}</div>
+                    </div>
+                    <div className={`p-2 rounded border transition-colors ${sig.tp1Hit ? 'bg-green-500/20 border-green-500/40' : 'bg-green-500/5 border-green-500/20'}`}>
+                      <div className="text-[9px] text-green-500/70 uppercase">TP1</div>
+                      <div className="text-xs font-mono font-bold text-green-500">${formatPrice(sig.takeProfit1)}</div>
+                    </div>
+                    <div className={`p-2 rounded border transition-colors ${sig.tp2Hit ? 'bg-green-500/20 border-green-500/40' : 'bg-green-500/5 border-green-500/20'}`}>
+                      <div className="text-[9px] text-green-500/70 uppercase">TP2</div>
+                      <div className="text-xs font-mono font-bold text-green-500">${sig.takeProfit2 ? formatPrice(sig.takeProfit2) : '-'}</div>
+                    </div>
+                    <div className={`p-2 rounded border transition-colors ${sig.tp1Hit ? 'bg-primary/20 border-primary/40' : 'bg-red-500/5 border-red-500/20'}`}>
+                      <div className={`text-[9px] uppercase ${sig.tp1Hit ? 'text-primary' : 'text-red-500/70'}`}>{sig.tp1Hit ? 'BE' : 'SL'}</div>
+                      <div className={`text-xs font-mono font-bold ${sig.tp1Hit ? 'text-primary' : 'text-red-500'}`}>${formatPrice(sig.currentStopLoss)}</div>
+                    </div>
+                  </div>
                 </div>
-                <span className={`text-[10px] min-w-[50px] text-right ${sig.tp2Hit ? "text-green-400 font-bold" : "text-muted-foreground"}`}>
-                  {sig.tp2Hit ? "✓ Hit" : distTP2 !== null ? `${Math.abs(distTP2).toFixed(2)}%` : "—"}
-                </span>
-              </div>
-            )}
 
-            {/* TP3 */}
-            {sig.takeProfit3 && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="font-semibold w-8 text-green-500">TP3</span>
-                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-green-500/40"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${tp3Progress}%` }}
-                    transition={{ duration: 0.5 }}
-                  />
+                {/* Progress Bars */}
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Distância dos Alvos</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-semibold w-8 text-emerald-400 text-[10px]">TP1</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div className="h-full bg-emerald-400" initial={{ width: 0 }} animate={{ width: `${tp1Progress}%` }} />
+                      </div>
+                      <span className="text-[10px] min-w-[40px] text-right font-mono">{sig.tp1Hit ? 'OK' : `${Math.abs(distTP1).toFixed(1)}%`}</span>
+                    </div>
+                    {sig.takeProfit2 && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-semibold w-8 text-green-400 text-[10px]">TP2</span>
+                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <motion.div className="h-full bg-green-400" initial={{ width: 0 }} animate={{ width: `${tp2Progress}%` }} />
+                        </div>
+                        <span className="text-[10px] min-w-[40px] text-right font-mono">{sig.tp2Hit ? 'OK' : `${Math.abs(distTP2!).toFixed(1)}%`}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={`font-semibold w-8 text-[10px] ${sig.tp1Hit ? 'text-primary' : 'text-red-500'}`}>{sig.tp1Hit ? 'BE' : 'SL'}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div className={`h-full ${sig.tp1Hit ? 'bg-primary' : 'bg-red-500'}`} initial={{ width: 0 }} animate={{ width: `${Math.max(0, 100 - Math.abs(distSL) * 10)}%` }} />
+                      </div>
+                      <span className="text-[10px] min-w-[40px] text-right font-mono">{Math.abs(distSL).toFixed(1)}%</span>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[10px] min-w-[50px] text-right text-muted-foreground">
-                  {distTP3 !== null ? `${Math.abs(distTP3).toFixed(2)}%` : "—"}
-                </span>
               </div>
-            )}
 
-            {/* SL */}
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`font-semibold w-8 ${sig.tp1Hit ? "text-primary" : "text-red-500"}`}>
-                {sig.tp1Hit ? "BE" : "SL"}
-              </span>
-              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full ${sig.tp1Hit ? "bg-primary/40" : "bg-red-500/40"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.max(0, Math.min(100, 100 - Math.abs(distSL) * 10))}%` }}
-                  transition={{ duration: 0.5 }}
-                />
+              {/* Status footer */}
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-2 border-t border-border/5">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3 h-3" />
+                  <span>Entrada: {new Date(sig.signalTime).toLocaleString('pt-BR')}</span>
+                </div>
+                {sig.peakPnlPct > 0 && (
+                  <span className="text-green-500/80 font-medium">Máximo atingido: +{(sig.peakPnlPct * sig.leverage).toFixed(2)}%</span>
+                )}
               </div>
-              <span className="text-[10px] min-w-[50px] text-right text-muted-foreground">
-                {Math.abs(distSL).toFixed(2)}%
-              </span>
             </div>
-          </div>
-
-          {/* Breakeven alert */}
-          {sig.tp1Hit && !sig.tp2Hit && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs"
-            >
-              <Shield className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="text-primary font-medium">
-                SL movido para Breakeven (${formatPrice(sig.entryPrice)}) — Lucro TP1 garantido
-              </span>
-            </motion.div>
-          )}
-
-          {sig.tp2Hit && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-xs"
-            >
-              <Target className="w-4 h-4 text-green-500 flex-shrink-0" />
-              <span className="text-green-500 font-medium">
-                TP2 atingido — Buscando TP3 com proteção em Breakeven
-              </span>
-            </motion.div>
-          )}
-
-          {/* Peak P&L */}
-          {sig.peakPnlPct > 0 && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Target className="w-3 h-3" />
-              Peak P&L: <span className="text-green-500 font-semibold">+{(sig.peakPnlPct * sig.leverage).toFixed(2)}%</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
