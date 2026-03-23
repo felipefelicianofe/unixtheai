@@ -22,9 +22,9 @@ serve(async (req) => {
       });
     }
 
-    const GOOGLE_AI_API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
+    const GOOGLE_AI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
     if (!GOOGLE_AI_API_KEY) {
-      return new Response(JSON.stringify({ error: "GOOGLE_AI_API_KEY não configurada" }), {
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY não configurada no Supabase Secrets" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

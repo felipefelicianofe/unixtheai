@@ -80,9 +80,17 @@ const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
       </CardHeader>
       <CardContent className="pb-4">
         {monitoredAssets.length === 0 ? (
-          <div className="text-center py-4 text-muted-foreground text-sm">
-            Nenhum ativo monitorado. Ative configurações para iniciar.
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-8 flex flex-col items-center justify-center space-y-3 bg-muted/5 rounded-lg border border-dashed border-primary/20"
+          >
+             <Activity className="w-8 h-8 text-primary/40 animate-pulse" />
+             <p className="text-muted-foreground text-sm font-medium">Nenhum satélite engatado na Binance.</p>
+             <p className="text-xs text-muted-foreground/60 max-w-sm">
+               Crie e ative configurações abaixo para plugar a Inteligência Artificial e iniciar a varredura global 24/7.
+             </p>
+          </motion.div>
         ) : (
           <div className="flex flex-wrap gap-2.5">
             <AnimatePresence mode="popLayout">

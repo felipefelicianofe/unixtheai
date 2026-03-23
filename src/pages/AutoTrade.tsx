@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { X, Plus, Target } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
 import ApiVault from "@/components/autotrade/ApiVault";
 import RiskManagement from "@/components/autotrade/RiskManagement";
@@ -9,13 +10,16 @@ import LiquidityRadar from "@/components/autotrade/LiquidityRadar";
 import MacroShieldWidget from "@/components/autotrade/MacroShield";
 import PanicButton from "@/components/autotrade/PanicButton";
 import TradingStatusBar from "@/components/autotrade/TradingStatusBar";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { runAutotradeEngine } from "@/lib/binanceApi";
 import type { ConnectionStatus } from "@/lib/tradingEngine";
 
 const AUTOTRADE_INTERVAL_MS = 5 * 60 * 1000; // Run analysis every 5 minutes
-const AUTOTRADE_ASSETS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
 const AutoTrade = () => {
+  const [autotradeAssets, setAutotradeAssets] = useState<string[]>(["BTCUSDT", "ETHUSDT", "SOLUSDT"]);
+  const [newAssetInput, setNewAssetInput] = useState("");
   const [hasPositions, setHasPositions] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isAutopilotActive, setIsAutopilotActive] = useState(false);
@@ -51,9 +55,15 @@ const AutoTrade = () => {
   const runEngine = useCallback(async () => {
     if (!isConnected || !isAutopilotActive) return;
 
-    console.log("[AUTOTRADE UI] Running engine cycle...");
+    if (autotradeAssets.length === 0) {
+      toast.error("Adicione ao menos 1 ativo no Esquadrão para operar.");
+      setIsAutopilotActive(false);
+      return;
+    }
+
+    console.log("[AUTOTRADE UI] Running engine cycle with targets:", autotradeAssets);
     try {
-      const result = await runAutotradeEngine(AUTOTRADE_ASSETS, "1h");
+      const result = await runAutotradeEngine(autotradeAssets, "1h");
       setLastEngineRun(new Date().toLocaleTimeString());
 
       interface AutotradeResult {
@@ -142,6 +152,69 @@ const AutoTrade = () => {
             isAutopilotActive={isAutopilotActive}
             hasPositions={hasPositions}
           />
+
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass rounded-2xl p-6 border-[hsl(var(--neon-green))]/20 shadow-[0_0_30px_rgba(16,185,129,0.05)] bg-gradient-to-b from-background/80 to-background/40">
+            <h2 className="text-sm font-bold flex items-center gap-2 text-foreground mb-4">
+              <Target className="w-5 h-5 text-primary" />
+              Esquadrão Institucional Múltiplo (Scanner Dinâmico)
+            </h2>
+            <div className="flex flex-wrap gap-2 mb-5">
+              <AnimatePresence>
+                {autotradeAssets.map((asset) => (
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    key={asset} 
+                    className="flex items-center gap-2 bg-[hsl(var(--neon-green))]/10 text-[hsl(var(--neon-green))] px-3 py-1.5 rounded-[10px] border border-[hsl(var(--neon-green))]/30 shadow-sm text-sm font-bold font-mono tracking-wide"
+                  >
+                    {asset}
+                    <button
+                      onClick={() => setAutotradeAssets((prev) => prev.filter((a) => a !== asset))}
+                      disabled={isAutopilotActive}
+                      className="hover:text-red-500 transition-colors disabled:opacity-30 disabled:hover:text-inherit"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+            
+            <div className="flex gap-3 max-w-sm">
+               <Input 
+                 value={newAssetInput}
+                 onChange={(e) => setNewAssetInput(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+                 placeholder="ex: BNBUSDT"
+                 disabled={isAutopilotActive}
+                 className="bg-muted/20 border-border/50 focus-visible:ring-primary/50 text-sm font-bold tracking-widest"
+                 onKeyDown={(e) => {
+                   if (e.key === 'Enter' && newAssetInput) {
+                     if (!autotradeAssets.includes(newAssetInput)) {
+                       setAutotradeAssets([...autotradeAssets, newAssetInput]);
+                     }
+                     setNewAssetInput("");
+                   }
+                 }}
+               />
+               <Button 
+                   disabled={isAutopilotActive || !newAssetInput}
+                   onClick={() => {
+                     if (newAssetInput && !autotradeAssets.includes(newAssetInput)) {
+                       setAutotradeAssets([...autotradeAssets, newAssetInput]);
+                       setNewAssetInput("");
+                     }
+                   }} 
+                   variant="outline" 
+                   className="border-primary/50 text-primary hover:bg-primary/20 hover:text-primary transition-all font-bold gap-1"
+               >
+                 <Plus className="w-4 h-4" /> ADD
+               </Button>
+            </div>
+            <p className="text-[10.5px] text-muted-foreground/80 mt-4 leading-relaxed max-w-2xl">
+              Os Ativos blindados acima são passados em tempo real para as Edge Functions Supabase em forma de Array. O AutoTrade aplicará Wyckoff/SMC, simulará 10.000 cenários Monte-Carlo e buscará Setup Ótimo. Desative o Autopilot para editar os satélites.
+            </p>
+          </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ApiVault onConnectionChange={handleConnectionChange} />

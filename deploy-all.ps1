@@ -7,19 +7,11 @@ param (
 
 Write-Host "`n🚀 Iniciando Deploy Global de Katon AI..." -ForegroundColor Cyan
 
-# 1. Frontend & Vercel Sync (via Git)
-Write-Host "`n📦 Sincronizando Git (Frontend/Vercel)..." -ForegroundColor Yellow
-git add .
-git commit -m "$commitMessage"
-git push origin main
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`n❌ Cancelando Deploy das Funções: Erro no Git Push!" -ForegroundColor Red
-    exit 1
-}
+# 1. Frontend & Vercel Sync 
+Write-Host "`n📦 Aviso: Sincronização com Vercel (Git Push) deve ser feita manualmente para segurança de Produção." -ForegroundColor Gray
 
 # 2. Supabase Edge Functions Deploy
-Write-Host "`n🔥 Subindo Supabase Edge Functions (13 funções)..." -ForegroundColor Yellow
+Write-Host "`n🔥 Subindo Supabase Edge Functions (13 funções) da Katon AI..." -ForegroundColor Yellow
 
 $functions = @(
     "analyze-asset", 
