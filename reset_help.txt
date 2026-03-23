@@ -1,0 +1,25 @@
+Resets the local database to current migrations
+
+Usage:
+  supabase db reset [flags]
+
+Flags:
+      --db-url string    Resets the database specified by the connection string (must be percent-encoded).
+  -h, --help             help for reset
+      --last uint        Reset up to the last n migration versions.
+      --linked           Resets the linked project with local migrations.
+      --local            Resets the local database with local migrations. (default true)
+      --no-seed          Skip running the seed script after reset.
+      --version string   Reset up to the specified version.
+
+Global Flags:
+      --agent [ auto | yes | no ]                      Override agent detection: yes, no, or auto (default auto) (default auto)
+      --create-ticket                                  create a support ticket for any CLI error
+      --debug                                          output debug logs to stderr
+      --dns-resolver [ native | https ]                lookup domain names using the specified resolver (default native)
+      --experimental                                   enable experimental features
+      --network-id string                              use the specified docker network instead of a generated one
+  -o, --output [ env | pretty | json | toml | yaml ]   output format of status variables (default pretty)
+      --profile string                                 use a specific profile for connecting to Supabase API (default "supabase")
+      --workdir string                                 path to a Supabase project directory
+      --yes                                            answer yes to all prompts

@@ -1,0 +1,2 @@
+ALTER TABLE auto_analysis_history ADD COLUMN IF NOT EXISTS close_reason TEXT DEFAULT NULL;
+ALTER TABLE auto_analysis_history ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ DEFAULT NULL;

@@ -1,0 +1,35 @@
+project_id = "khgfgtnoamatjdqgftdl"
+
+[functions.analyze-asset]
+verify_jwt = false
+
+[functions.check-admin]
+verify_jwt = false
+
+[functions.binance-proxy]
+verify_jwt = false
+
+[functions.autotrade-engine]
+verify_jwt = false
+
+[functions.run-auto-analyses]
+verify_jwt = false
+
+[functions.verify-analyses-results]
+verify_jwt = false
+
+[functions.generate-ai-narrative]
+verify_jwt = false
+
+[functions.auto-refine]
+verify_jwt = false
+
+[functions.run-auto-management]
+verify_jwt = false
+
+[functions.verify-management-results]
+verify_jwt = false
+
+[functions.management-auto-refine]
+verify_jwt = false
+

@@ -1,0 +1,1 @@
+ALTER TABLE public.broker_credentials ADD COLUMN is_testnet boolean NOT NULL DEFAULT true;
