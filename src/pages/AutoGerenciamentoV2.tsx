@@ -126,6 +126,7 @@ const AutoGerenciamentoV2 = () => {
               isCreating={am.isCreating}
               setIsCreating={am.setIsCreating}
               createConfigMutation={am.createConfigMutation}
+              createAllConfigsMutation={am.createAllConfigsMutation}
               toggleConfigMutation={am.toggleConfigMutation}
               deleteConfigMutation={am.deleteConfigMutation}
             />

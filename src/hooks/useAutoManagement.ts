@@ -191,6 +191,43 @@ export function useAutoManagement() {
     onError: (err: any) => toast.error("Erro ao criar: " + err.message),
   });
 
+  const AVAILABLE_ASSETS = [
+    "BTCUSDT", "PAXGUSDT", "ETHUSDT", "SOLUSDT", "ADAUSDT", "DOTUSDT", "AVAXUSDT", 
+    "DOGEUSDT", "XRPUSDT", "LINKUSDT", "MATICUSDT", "BNBUSDT", "ATOMUSDT", 
+    "NEARUSDT", "ARBUSDT", "OPUSDT", "SUIUSDT", "APTUSDT", "UNIUSDT", 
+    "AAVEUSDT", "LTCUSDT"
+  ];
+
+  const createAllConfigsMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Usuário não logado");
+      const configsToInsert = AVAILABLE_ASSETS.map(asset => ({
+        asset: asset.toUpperCase(),
+        timeframe: "15m",
+        analysis_period_minutes: 1,
+        leverage: 150,
+        admin_id: user.id,
+        is_active: true,
+        last_run_at: null,
+      }));
+      const { error } = await supabase.from('auto_management_configs').insert(configsToInsert);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['auto-management-configs'] });
+      toast.success("⚡ Todos os 21 ativos adicionados! (15m, 1min, 150x)");
+      setIsCreating(false);
+      refreshConfigs();
+      try {
+        await supabase.functions.invoke('run-auto-management');
+        queryClient.invalidateQueries({ queryKey: ['auto-management-history'] });
+      } catch (e) {
+        console.error("Erro ao engatilhar bulk run-auto-management", e);
+      }
+    },
+    onError: (err: any) => toast.error("Erro ao criar em massa: " + err.message),
+  });
+
   const toggleConfigMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string, is_active: boolean }) => {
       const { error } = await supabase
@@ -348,6 +385,7 @@ export function useAutoManagement() {
     verifyMutation,
     refineMutation,
     createConfigMutation,
+    createAllConfigsMutation,
     toggleConfigMutation,
     deleteConfigMutation,
     deleteHistoryMutation,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Database, Play, Target, Trash2, Loader2 } from "lucide-react";
+import { Plus, Database, Play, Target, Trash2, Loader2, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -25,6 +25,7 @@ interface ConfigsTabProps {
   isCreating: boolean;
   setIsCreating: (v: boolean) => void;
   createConfigMutation: any;
+  createAllConfigsMutation: any;
   toggleConfigMutation: any;
   deleteConfigMutation: any;
 }
@@ -35,6 +36,7 @@ export const ConfigsTab: React.FC<ConfigsTabProps> = ({
   isCreating,
   setIsCreating,
   createConfigMutation,
+  createAllConfigsMutation,
   toggleConfigMutation,
   deleteConfigMutation,
 }) => {
@@ -73,12 +75,29 @@ export const ConfigsTab: React.FC<ConfigsTabProps> = ({
       </div>
 
       {isCreating && (
-        <Card className="glass-panel border-primary/30">
-          <CardHeader>
-            <CardTitle className="text-lg">Nova Ação de AutoAnálise</CardTitle>
-            <CardDescription>Defina o ativo e o período.</CardDescription>
+        <Card className="glass-panel border-primary/30 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-primary/5 pointer-events-none" />
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+            <div>
+              <CardTitle className="text-lg">Nova Ação de AutoAnálise</CardTitle>
+              <CardDescription>Defina o ativo individualmente, ou preencha a base de dados rapidamente.</CardDescription>
+            </div>
+            <Button 
+              type="button" 
+              variant="default" 
+              className="bg-amber-500 hover:bg-amber-600 text-white border-none shadow-[0_0_15px_rgba(245,158,11,0.3)] hover:shadow-[0_0_20px_rgba(245,158,11,0.5)] transition-all ease-in-out duration-300 transform hover:scale-[1.02]"
+              onClick={() => createAllConfigsMutation.mutate()}
+              disabled={createAllConfigsMutation.isPending}
+            >
+              {createAllConfigsMutation.isPending ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Zap className="w-5 h-5 mr-2 text-yellow-100 fill-yellow-200" />
+              )}
+              Fast Setup: Adicionar Tudo (15m, 1m, 150x)
+            </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative z-10">
             <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               <div className="space-y-2">
                 <Label>Ativo</Label>
