@@ -25,23 +25,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkAdmin = async (userId: string) => {
     try {
-      console.log(`[AuthContext] Iniciando verificação de Admin para: ${userId}`);
+      console.log(`[AuthContext] Verificando Admin para ${userId} via is_admin_v3...`);
       
-      // 1. Primary check via RPC (security definer bypasses RLS)
-      const { data, error: rpcError } = await supabase.rpc("has_role", {
-        _role: "admin",
+      const { data, error: rpcError } = await supabase.rpc("is_admin_v3", {
         _user_id: userId
       });
       
       if (!rpcError) {
-        console.log(`[AuthContext] Resultado RPC has_role: ${data}`);
+        console.log(`[AuthContext] Resultado is_admin_v3 check: ${data}`);
         setIsAdmin(data === true);
         return;
       }
 
-      console.warn("[AuthContext] RPC falhou, tentando consulta direta à tabela user_roles...", rpcError);
+      // TRATAMENTO DE CONFLITO E LOCK: Se for erro de timeout ou conexão, NÃO deslogar precipitadamente
+      const isLockError = rpcError.message?.includes("Lock") || rpcError.message?.includes("Abort");
+      if (isLockError) {
+        console.warn("[AuthContext] Detectado erro de Lock/Contenção de Mutex no navegador. Retendo estado atual para evitar loop.");
+        // Não alteramos isAdmin nem deslogamos; deixamos a próxima verificação ou persistência cuidar disso.
+        return;
+      }
 
-      // 2. Fallback check via direct table query
+      console.warn("[AuthContext] is_admin_v3 falhou, tentando consulta direta...", rpcError);
+
       const { data: roleData, error: tableError } = await supabase
         .from("user_roles")
         .select("role")
@@ -50,15 +55,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .maybeSingle();
 
       if (tableError) {
-        console.error("[AuthContext] Falha crítica em ambas verificações de admin:", tableError);
-        setIsAdmin(false);
+        console.error("[AuthContext] Falha total na verificação de admin:", tableError);
+        // Em caso de erro de conexão, preferimos assumir false por segurança, 
+        // mas aqui mantemos o isAdmin anterior para evitar loop se for intermitente.
       } else {
-        console.log("[AuthContext] Resultado Consulta Direta:", roleData);
+        console.log("[AuthContext] Resultado Consulta Direta (Fallback):", roleData);
         setIsAdmin(!!roleData);
       }
     } catch (err) {
-      console.error("[AuthContext] Erro inesperado em checkAdmin:", err);
-      setIsAdmin(false);
+      console.error("[AuthContext] Erro fatal em checkAdmin:", err);
     }
   };
 
