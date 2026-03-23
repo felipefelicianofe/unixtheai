@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { runAutotradeEngine } from "@/lib/binanceApi";
 import type { ConnectionStatus } from "@/lib/tradingEngine";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const AUTOTRADE_INTERVAL_MS = 5 * 60 * 1000; // Run analysis every 5 minutes
 
@@ -26,7 +28,8 @@ const AutoTrade = () => {
   const [accountBalance, setAccountBalance] = useState(0);
   const [currentPnl, setCurrentPnl] = useState(0);
   const [lastEngineRun, setLastEngineRun] = useState<string | null>(null);
-  const engineRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isEngineOnline, setIsEngineOnline] = useState(false);
+  const { user } = useAuth();
 
   const handlePanicClose = useCallback(() => {
     setHasPositions(false);
@@ -51,79 +54,57 @@ const AutoTrade = () => {
     setHasPositions(has);
   }, []);
 
-  // AutoTrade Engine Loop
-  const runEngine = useCallback(async () => {
-    if (!isConnected || !isAutopilotActive) return;
-
-    if (autotradeAssets.length === 0) {
-      toast.error("Adicione ao menos 1 ativo no Esquadrão para operar.");
-      setIsAutopilotActive(false);
-      return;
-    }
-
-    console.log("[AUTOTRADE UI] Running engine cycle with targets:", autotradeAssets);
-    try {
-      const result = await runAutotradeEngine(autotradeAssets, "1h");
-      setLastEngineRun(new Date().toLocaleTimeString());
-
-      interface AutotradeResult {
-        executed: boolean;
-        asset: string;
-        side?: string;
-        quantity?: number;
-        stopLoss?: number;
-        takeProfit?: number;
-        reason?: string;
-        confidence?: number;
-      }
-
-      const res = result as { results?: AutotradeResult[]; autopilot_deactivated?: boolean; reason?: string };
-      
-      if (res && res.autopilot_deactivated) {
-        setIsAutopilotActive(false);
-        toast.warning(res.reason || "Autopilot deactivated by kill switch");
-        return;
-      }
-
-      const executed = res?.results?.filter((r) => r.executed) || [];
-      if (executed.length > 0) {
-        for (const exec of executed) {
-          toast.success(
-            `🎯 Ordem executada: ${exec.side} ${exec.quantity} ${exec.asset} @ market | SL: $${exec.stopLoss} | TP: $${exec.takeProfit}`,
-            { duration: 10000 }
-          );
-        }
-      }
-
-      const skipped = res?.results?.filter((r) => !r.executed) || [];
-      for (const skip of skipped) {
-        if (skip.confidence && skip.confidence > 50) {
-          console.log(`[AUTOTRADE] ${skip.asset}: ${skip.reason}`);
-        }
-      }
-    } catch (err) {
-      console.error("[AUTOTRADE] Engine error:", err);
-    }
-  }, [isConnected, isAutopilotActive]);
-
-  // Start/stop engine loop
+  // Carrega configurações iniciais (ativos e status do motor 24/7)
   useEffect(() => {
-    if (engineRef.current) {
-      clearInterval(engineRef.current);
-      engineRef.current = null;
-    }
+    const loadState = async () => {
+      if (!user) return;
+      
+      const { data: dbSettings } = await (supabase as any)
+        .from("autopilot_settings")
+        .select("target_assets")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (isConnected && isAutopilotActive) {
-      // Run immediately on activation
-      runEngine();
-      // Then run periodically
-      engineRef.current = setInterval(runEngine, AUTOTRADE_INTERVAL_MS);
-    }
+      if (dbSettings && dbSettings.target_assets) {
+        setAutotradeAssets(dbSettings.target_assets as string[]);
+      }
 
-    return () => {
-      if (engineRef.current) clearInterval(engineRef.current);
+      const { data: heartbeat } = await (supabase as any)
+        .from("system_heartbeats")
+        .select("last_pulse_at")
+        .eq("caller_name", "autotrade-engine")
+        .maybeSingle();
+
+      if (heartbeat) {
+        const pulseDate = new Date(heartbeat.last_pulse_at);
+        setLastEngineRun(pulseDate.toLocaleTimeString());
+        
+        // Se a engine bateu nos últimos 6 minutos, consideramos ONLINE (intervalo base é 5m)
+        const diffMinutes = (Date.now() - pulseDate.getTime()) / 60000;
+        setIsEngineOnline(diffMinutes <= 6);
+      }
     };
-  }, [isConnected, isAutopilotActive, runEngine]);
+    
+    loadState();
+    
+    // Configura o Poll passivo do frontend apenas para atualizar UI do Heartbeat
+    const uiPoll = setInterval(loadState, 30000);
+    return () => clearInterval(uiPoll);
+  }, [user]);
+
+  // Função para adicionar ou remover ativos e salvar direto no BD
+  const updateAssets = async (newAssetList: string[]) => {
+    setAutotradeAssets(newAssetList);
+    if (!user) return;
+    try {
+      await (supabase as any)
+        .from("autopilot_settings")
+        .update({ target_assets: newAssetList })
+        .eq("user_id", user.id);
+    } catch {
+       // ignorar
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,9 +121,14 @@ const AutoTrade = () => {
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
             <h1 className="text-2xl font-bold text-foreground">Painel de Execução Autônoma</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Motor de trading IA com dados e execução reais via Binance Futures
+              Motor de trading IA executando em Cloud 24/7 (Pg_Cron)
+              {isEngineOnline ? (
+                <span className="text-xs font-bold text-primary ml-2 animate-pulse">• STATUS ONLINE</span>
+              ) : (
+                <span className="text-xs font-bold text-[hsl(var(--neon-red))] ml-2">• POSSÍVEL PARADA (Revisão da Automação)</span>
+              )}
               {lastEngineRun && (
-                <span className="text-xs text-primary ml-2">(Última análise: {lastEngineRun})</span>
+                <span className="text-xs text-muted-foreground ml-2">(Último giro nativo: {lastEngineRun})</span>
               )}
             </p>
           </motion.div>
@@ -170,7 +156,7 @@ const AutoTrade = () => {
                   >
                     {asset}
                     <button
-                      onClick={() => setAutotradeAssets((prev) => prev.filter((a) => a !== asset))}
+                      onClick={() => updateAssets(autotradeAssets.filter((a) => a !== asset))}
                       disabled={isAutopilotActive}
                       className="hover:text-red-500 transition-colors disabled:opacity-30 disabled:hover:text-inherit"
                     >

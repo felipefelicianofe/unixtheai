@@ -25,52 +25,96 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
+    // Identifica se a chamada é de Admin/Cron (bypass)
+    const isCronOrAdmin = authHeader.replace("Bearer ", "") === serviceKey;
+    let userIdStr = "";
+
+    const supabase = createClient(supabaseUrl, isCronOrAdmin ? serviceKey : supabaseKey, {
+      global: isCronOrAdmin ? {} : { headers: { Authorization: authHeader } },
     });
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!isCronOrAdmin) {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: "Invalid token" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userIdStr = user.id;
     }
 
-    const { assets, timeframe } = await req.json();
+    const reqBody = await req.json();
+    const assets = reqBody?.assets || ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
+    const timeframe = reqBody?.timeframe || "1h";
 
-    // 1. Get user's autopilot settings
-    const { data: settings } = await supabase
-      .from("autopilot_settings")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    let targetUsers = [];
+
+    if (isCronOrAdmin) {
+      if (reqBody.target_user_id) {
+         targetUsers.push({ user_id: reqBody.target_user_id });
+      } else {
+         // Se não vier um target_user_id, busca TODOS os ativos (Isso transforma num orquestrador em lote)
+         const { data: activeUsers } = await supabase
+           .from("autopilot_settings")
+           .select("user_id")
+           .eq("is_active", true);
+         
+         targetUsers = activeUsers || [];
+         
+         // Grava heartbeat se for cron global
+         try {
+             await supabase.from("system_heartbeats").upsert(
+                 { caller_name: "autotrade-engine", last_pulse_at: new Date().toISOString(), status: "OK" },
+                 { onConflict: 'caller_name' }
+             );
+         } catch(e) {}
+      }
+    } else {
+      targetUsers.push({ user_id: userIdStr });
+    }
+
+    const allResults = [];
+
+    // --- LOOP SOBRE CADA USUÁRIO ATIVO ---
+    for (const currentUser of targetUsers) {
+      userIdStr = currentUser.user_id;
+      
+      // 1. Get user's autopilot settings
+      const { data: settings } = await supabase
+        .from("autopilot_settings")
+        .select("*")
+        .eq("user_id", userIdStr)
+        .single();
 
     if (!settings?.is_active) {
-      return new Response(
-        JSON.stringify({ executed: false, reason: "Autopilot is not active" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      allResults.push({ asset: "ALL", executed: false, reason: `Autopilot deactivated for user ${userIdStr}` });
+      continue;
     }
 
     // 2. Get broker credentials
     const { data: creds } = await supabase
       .from("broker_credentials")
       .select("api_key, api_secret, broker, is_connected")
-      .eq("user_id", user.id)
+      .eq("user_id", userIdStr)
       .single();
 
     if (!creds?.is_connected) {
-      return new Response(
-        JSON.stringify({ executed: false, reason: "Broker not connected" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      allResults.push({ asset: "ALL", executed: false, reason: `Broker not connected for user ${userIdStr}` });
+      continue;
     }
 
-    // 3. Run analysis on each asset via the analyze-asset function internally
+    // 3. Obtém os ativos a serem processados do BD de configurações do usuário, caso contrário default
+    let targetAssets = [];
+    if (assets && Array.isArray(assets) && assets.length > 0) {
+        targetAssets = assets;
+    } else {
+        targetAssets = settings.target_assets || ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
+    }
+
     const analyzeUrl = `${supabaseUrl}/functions/v1/analyze-asset`;
     
     interface AutotradeResult {
@@ -85,10 +129,10 @@ serve(async (req) => {
       stopLoss?: number;
       takeProfit?: number;
       orderId?: string;
+      autopilot_deactivated?: boolean;
     }
 
     const results: AutotradeResult[] = [];
-    const targetAssets = assets as string[] || ["BTCUSDT", "ETHUSDT", "SOLUSDT"];
 
     for (const asset of targetAssets) {
       try {
@@ -172,16 +216,15 @@ serve(async (req) => {
               is_active: false,
               deactivation_reason: `daily_profit_goal_reached: +$${dailyPnl.toFixed(2)}`,
             })
-            .eq("user_id", user.id);
+            .eq("user_id", userIdStr);
 
-          return new Response(
-            JSON.stringify({
-              executed: false,
-              reason: `Daily profit goal reached (+$${dailyPnl.toFixed(2)}). Autopilot deactivated.`,
-              autopilot_deactivated: true,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          results.push({
+            asset,
+            executed: false,
+            reason: `Daily profit goal reached (+$${dailyPnl.toFixed(2)}). Autopilot deactivated for user.`,
+            autopilot_deactivated: true,
+          });
+          continue;
         }
 
         if (dailyPnl <= -maxLoss) {
@@ -192,16 +235,15 @@ serve(async (req) => {
               is_active: false,
               deactivation_reason: `daily_loss_limit_reached: -$${Math.abs(dailyPnl).toFixed(2)}`,
             })
-            .eq("user_id", user.id);
+            .eq("user_id", userIdStr);
 
-          return new Response(
-            JSON.stringify({
-              executed: false,
-              reason: `Daily loss limit reached (-$${Math.abs(dailyPnl).toFixed(2)}). Autopilot deactivated.`,
-              autopilot_deactivated: true,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          results.push({
+            asset,
+            executed: false,
+            reason: `Daily loss limit reached (-$${Math.abs(dailyPnl).toFixed(2)}). Autopilot deactivated for user.`,
+            autopilot_deactivated: true,
+          });
+          continue;
         }
 
         // Position sizing
@@ -351,7 +393,7 @@ serve(async (req) => {
 
         // 7. Save to analysis_history
         const { data: historyRecord } = await supabase.from("analysis_history").insert({
-          user_id: user.id,
+          user_id: userIdStr,
           asset,
           timeframe: timeframe || "1h",
           signal: analysis.header.signal,
@@ -380,7 +422,7 @@ serve(async (req) => {
         const partialSize = parseFloat((roundedQty * 0.3333).toFixed(8));
 
         await supabase.from("trade_positions").insert({
-          user_id: user.id,
+          user_id: userIdStr,
           analysis_id: historyRecord?.id || null,
           symbol,
           side: positionSide,
@@ -426,9 +468,12 @@ serve(async (req) => {
               : "Unknown error",
         });
       }
-    }
+    } // END OF ASSET LOOP
 
-    return new Response(JSON.stringify({ results, timestamp: Date.now() }), {
+    allResults.push(...results);
+  } // END OF FOR EACH USER LOOP
+
+  return new Response(JSON.stringify({ results: allResults, timestamp: Date.now() }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
