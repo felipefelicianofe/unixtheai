@@ -582,9 +582,9 @@ const AutoGerenciamento = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
-            <h2 className="text-xl font-bold flex items-center gap-2">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              Sinais Ativos ({activeSignals.length})
+              Sinais Ativos ({activeSignals.length}) <span className="text-[10px] opacity-30 font-mono">v2.1</span>
             </h2>
             <div className="flex flex-col gap-2">
               {[...activeSignals]

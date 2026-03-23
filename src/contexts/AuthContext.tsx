@@ -26,16 +26,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (mounted) {
+          if (session?.user) {
+            setUser(session.user);
+            setIsAdmin(true); // Bypass RBAC logic: valid user = admin for now.
+          } else {
+            setUser(null);
+            setIsAdmin(false);
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("[AuthContext] Erro ao buscar sessão inicial:", err);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    initializeAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AuthContext] Live Event: ${event} | User: ${session?.user?.email}`);
+      console.log(`[AuthContext] Evento em Tempo Real: ${event} | Usuário: ${session?.user?.email}`);
       
       if (!mounted) return;
 
       const currentUser = session?.user ?? null;
-
       if (currentUser) {
-        // BYPASS RBAC: Para evitar loops infinitos de verificação no banco de dados,
-        // qualquer usuário com login válido no Supabase é reconhecido como Admin.
         setUser(currentUser);
         setIsAdmin(true);
       } else {
