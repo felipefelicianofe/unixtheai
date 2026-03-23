@@ -24,13 +24,25 @@ if ([string]::IsNullOrWhiteSpace($gitStatus)) {
     if ($LASTEXITCODE -ne 0) {
         Write-Host "⚠️ Erro ao realizar o commit do Git." -ForegroundColor Red
     } else {
-        Write-Host "Enviando (Push) para a branch main na Origem..." -ForegroundColor Gray
-        git push origin main
+        # Detecta a branch atual para o push correto (master ou main)
+        $currentBranch = git branch --show-current
+        Write-Host "Enviando (Push) da branch '$currentBranch' para a Origem..." -ForegroundColor Gray
+        
+        # Tenta o push para 'main' se falhar 'master' ou vice-versa, ou apenas para a branch atual
+        git push origin "$currentBranch"
         
         if ($LASTEXITCODE -eq 0) {
             Write-Host "✅ Sincronização Frontend (Vercel) concluída com Sucesso!" -ForegroundColor Green
         } else {
-            Write-Host "⚠️ Erro no Push do Git! Pode haver conflitos na branch main que precisam de 'git pull'." -ForegroundColor Red
+            # Tenta forçar push local para a branch remota 'main' caso ela seja a padrão no repo
+            Write-Host "⚠️ Erro no Push Direto. Tentando mapeamento branch $currentBranch -> main..." -ForegroundColor Yellow
+            git push origin "${currentBranch}:main"
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Sincronização Frontend (Mapeada para main) concluída com Sucesso!" -ForegroundColor Green
+            } else {
+                Write-Host "⚠️ Erro crítico no Push do Git! Verifique a conexão com o GitHub e conflitos." -ForegroundColor Red
+            }
         }
     }
 }
