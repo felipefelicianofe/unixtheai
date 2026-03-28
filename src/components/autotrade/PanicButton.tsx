@@ -18,7 +18,8 @@ export default function PanicButton({ hasPositions, onPanicClose }: PanicButtonP
     setClosing(true);
     try {
       const result = await panicCloseAll();
-      toast.success(`Todas as posições encerradas! ${result?.closed || 0} posição(ões) fechada(s).`);
+      const res = result as { closed?: number } | undefined;
+      toast.success(`Todas as posições encerradas! ${res?.closed || 0} posição(ões) fechada(s).`);
       onPanicClose();
     } catch (err) {
       toast.error(`Erro ao encerrar: ${err instanceof Error ? err.message : "Unknown"}`);
