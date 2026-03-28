@@ -91,7 +91,7 @@ const Hero = () => {
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Análises técnicas, fundamentalistas e de timing avançadas para Forex, B3 e Cripto. Decisões baseadas em dados, não em emoção.
+            Quais as análises que são feitas na plataforma?
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
