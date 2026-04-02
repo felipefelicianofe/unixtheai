@@ -1,15 +1,14 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+
   // Fix: VITE_SUPABASE_ANON_KEY in .env points to a stale project.
-  // Force it to match the correct VITE_SUPABASE_PUBLISHABLE_KEY at build time.
-  const env = { ...process.env };
-  if (env.VITE_SUPABASE_PUBLISHABLE_KEY) {
-    env.VITE_SUPABASE_ANON_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  }
+  // Use the correct VITE_SUPABASE_PUBLISHABLE_KEY value instead.
+  const correctAnonKey = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || '';
 
   return {
     server: {
@@ -21,7 +20,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(correctAnonKey),
     },
     resolve: {
       alias: {
