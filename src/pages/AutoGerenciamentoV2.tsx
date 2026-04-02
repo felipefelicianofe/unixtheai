@@ -1,9 +1,15 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Target } from "lucide-react";
+import { Target, Trash2, XCircle } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAutoManagement, RefinementLog } from "@/hooks/useAutoManagement";
 
 // UI Components
