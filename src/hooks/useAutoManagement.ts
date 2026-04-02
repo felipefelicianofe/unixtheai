@@ -251,6 +251,43 @@ export function useAutoManagement() {
     onError: (err: any) => toast.error("Erro ao restaurar: " + err.message),
   });
 
+  // ── RESET mutations ──
+  const clearAllHistoryMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from('auto_management_history')
+        .update({ deleted_at: new Date().toISOString() })
+        .is('deleted_at', null)
+        .select('id');
+      if (error) throw error;
+      return data?.length || 0;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['auto-management-history'] });
+      queryClient.invalidateQueries({ queryKey: ['deleted-history'] });
+      toast.success(`${count} registro(s) movido(s) para a lixeira.`);
+    },
+    onError: (err: any) => toast.error("Erro ao limpar histórico: " + err.message),
+  });
+
+  const closeAllSignalsMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from('auto_management_history')
+        .update({ status: 'NEUTRAL', close_reason: 'MANUAL_RESET', closed_at: new Date().toISOString() })
+        .in('status', ['PENDING', 'WIN_TP1', 'WIN_TP2'])
+        .is('deleted_at', null)
+        .select('id');
+      if (error) throw error;
+      return data?.length || 0;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['auto-management-history'] });
+      toast.success(`${count} sinal(is) ativo(s) fechado(s).`);
+    },
+    onError: (err: any) => toast.error("Erro ao fechar sinais: " + err.message),
+  });
+
   // -- Processed Data --
   const toggleAssetFilter = useCallback((asset: string) => {
     setSelectedAssets(prev => {
@@ -352,6 +389,8 @@ export function useAutoManagement() {
     deleteConfigMutation,
     deleteHistoryMutation,
     restoreHistoryMutation,
+    clearAllHistoryMutation,
+    closeAllSignalsMutation,
     // Processed
     filteredHistory,
     dedupedHistory,
