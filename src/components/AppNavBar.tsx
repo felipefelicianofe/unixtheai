@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase } from "lucide-react";
+import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase, Radio } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: BarChart3 },
+  { label: "Live Trade", href: "/livetrade", icon: Radio },
   { label: "AutoTrade", href: "/autotrade", icon: Bot },
   { label: "Auto Teste", href: "/autoteste", icon: TestTube },
   { label: "Auto Gerenciamento", href: "/autogerenciamento", icon: Briefcase },

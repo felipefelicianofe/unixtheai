@@ -27,21 +27,21 @@ export default function TradeHistory() {
         today.setHours(0, 0, 0, 0);
 
         const { data } = await supabase
-          .from("analyses")
-          .select("id, asset, direction, confidence, created_at, result")
+          .from("analysis_history")
+          .select("id, asset, signal, final_confidence_pct, created_at, entry_price")
           .gte("created_at", today.toISOString())
           .order("created_at", { ascending: false })
           .limit(50);
 
         if (data) {
-          const mapped: TradeRecord[] = data.map((d: Record<string, unknown>) => ({
-            id: d.id as string,
-            symbol: d.asset as string,
-            side: (d.direction as string) === "Compra" ? "BUY" as const : "SELL" as const,
+          const mapped: TradeRecord[] = data.map((d) => ({
+            id: d.id,
+            symbol: d.asset,
+            side: d.signal === "Compra" ? "BUY" as const : "SELL" as const,
             quantity: 0,
-            price: 0,
+            price: d.entry_price || 0,
             pnl: null,
-            created_at: d.created_at as string,
+            created_at: d.created_at,
           }));
           setTrades(mapped);
         }
