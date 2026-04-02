@@ -19,27 +19,20 @@ const Login = () => {
   const { user, isAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    // Only proceed if auth state is fully loaded
-    if (!authLoading && user) {
-      if (isAdmin) {
-        console.log("[Login] Admin confirmed, navigating to dashboard...");
-        navigate("/autogerenciamento", { replace: true });
-      } else {
-        // User is logged in but checkAdmin returned false
-        console.warn("[Login] User logged in but lacks admin privileges. Executing graceful explicit signOut.");
-        
-        toast({
-          title: "Acesso Negado",
-          description: "Sua conta não possui privilégios de administrador ou ocorreu um erro na verificação (Tabela user_roles). Use a vacina SQL e tente novamente.",
-          variant: "destructive",
-        });
-        
-        // Curing the systemic trap: force signOut explicitly
-        // We must log them out dynamically so they don't get stuck in a phantom session.
-        supabase.auth.signOut().then(() => {
-          console.log("[Login] Zombie session destroyed.");
-        });
-      }
+    if (authLoading || !user) return;
+
+    if (isAdmin) {
+      console.log("[Login] Admin confirmed, navigating to dashboard...");
+      navigate("/autogerenciamento", { replace: true });
+    } else {
+      console.warn("[Login] User logged in but lacks admin privileges.");
+      toast({
+        title: "Acesso Negado",
+        description: "Sua conta não possui privilégios de administrador.",
+        variant: "destructive",
+      });
+      // Sign out once — no re-trigger risk because loading will be true during signOut
+      supabase.auth.signOut();
     }
   }, [user, isAdmin, authLoading, navigate, toast]);
 
