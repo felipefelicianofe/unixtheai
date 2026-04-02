@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
@@ -10,6 +10,8 @@ import {
   Zap,
   CheckCircle2,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,16 +47,16 @@ function calculatePnl(
   return { raw, leveraged: raw * leverage };
 }
 
-function statusLabel(status: MonitorStatus): { text: string; color: string; icon: React.ReactNode } {
+function statusLabel(status: MonitorStatus): { text: string; shortText: string; color: string; icon: React.ReactNode } {
   switch (status) {
     case "SIGNAL_ACTIVE":
-      return { text: "Sinal Ativo", color: "text-amber-400 border-amber-400/30 bg-amber-400/10", icon: <Zap className="w-3 h-3" /> };
+      return { text: "Sinal Ativo", shortText: "Ativo", color: "text-amber-400 border-amber-400/30 bg-amber-400/10", icon: <Zap className="w-3 h-3" /> };
     case "TP1_HIT":
-      return { text: "TP1 Atingido • SL → Breakeven", color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
+      return { text: "TP1 Atingido • SL → Breakeven", shortText: "TP1 ✓", color: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
     case "TP2_HIT":
-      return { text: "TP2 Atingido • Buscando TP3", color: "text-green-400 border-green-400/30 bg-green-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
+      return { text: "TP2 Atingido • Buscando TP3", shortText: "TP2 ✓", color: "text-green-400 border-green-400/30 bg-green-400/10", icon: <CheckCircle2 className="w-3 h-3" /> };
     default:
-      return { text: status, color: "text-muted-foreground border-muted-foreground/30", icon: null };
+      return { text: status, shortText: status, color: "text-muted-foreground border-muted-foreground/30", icon: null };
   }
 }
 
@@ -65,15 +67,14 @@ function distancePct(
   direction: "LONG" | "SHORT"
 ): number {
   if (direction === "LONG") {
-    // For LONG: how far is current from target (positive = not reached yet)
     return ((target - current) / current) * 100;
   } else {
-    // For SHORT: target is below entry, "reached" when price drops to target
     return ((current - target) / current) * 100;
   }
 }
 
 const ActiveSignalCard: React.FC<ActiveSignalCardProps> = ({ state, onManualClose }) => {
+  const [expanded, setExpanded] = useState(false);
   const { activeSignal, currentPrice, status, asset } = state;
   if (!activeSignal) return null;
 
@@ -89,11 +90,69 @@ const ActiveSignalCard: React.FC<ActiveSignalCardProps> = ({ state, onManualClos
   const distTP3 = sig.takeProfit3 ? distancePct(price, sig.takeProfit3, sig.entryPrice, sig.direction) : null;
   const distSL = distancePct(price, sig.currentStopLoss, sig.entryPrice, sig.direction);
 
-  // Progress for TP levels (100% = at target)
+  // Progress for TP levels
   const tp1Progress = sig.tp1Hit ? 100 : Math.max(0, Math.min(100, 100 - Math.abs(distTP1) * 10));
   const tp2Progress = sig.tp2Hit ? 100 : (distTP2 !== null ? Math.max(0, Math.min(100, 100 - Math.abs(distTP2) * 10)) : 0);
   const tp3Progress = distTP3 !== null ? Math.max(0, Math.min(100, 100 - Math.abs(distTP3) * 10)) : 0;
 
+  // ── Minimized View ──
+  if (!expanded) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        <Card
+          className={`glass-panel overflow-hidden cursor-pointer transition-all duration-200 hover:brightness-110 ${
+            isLong
+              ? "border-green-500/20 bg-gradient-to-r from-green-500/5 to-transparent"
+              : "border-red-500/20 bg-gradient-to-r from-red-500/5 to-transparent"
+          }`}
+          onClick={() => setExpanded(true)}
+        >
+          <div
+            className={`h-0.5 w-full ${
+              isLong ? "bg-gradient-to-r from-green-500 to-emerald-400" : "bg-gradient-to-r from-red-500 to-orange-400"
+            }`}
+          />
+          <div className="flex items-center justify-between px-4 py-3">
+            {/* Left: Asset + Direction */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`p-1.5 rounded-md ${isLong ? "bg-green-500/15 text-green-500" : "bg-red-500/15 text-red-500"}`}>
+                {isLong ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              </div>
+              <span className="font-bold text-sm">{asset}</span>
+              <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+                {sig.timeframe}
+              </Badge>
+              {sig.leverage > 1 && (
+                <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${isLong ? "text-green-500 border-green-500/30" : "text-red-500 border-red-500/30"}`}>
+                  {sig.leverage}x
+                </Badge>
+              )}
+            </div>
+
+            {/* Center: Status */}
+            <Badge variant="outline" className={`text-[9px] px-2 py-0.5 ${statusInfo.color}`}>
+              {statusInfo.icon}
+              <span className="ml-1">{statusInfo.shortText}</span>
+            </Badge>
+
+            {/* Right: P&L + Expand */}
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-bold tabular-nums ${pnl.leveraged >= 0 ? "text-green-500" : "text-red-500"}`}>
+                {pnl.leveraged >= 0 ? "+" : ""}{pnl.leveraged.toFixed(2)}%
+              </span>
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  // ── Expanded View ──
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -152,6 +211,15 @@ const ActiveSignalCard: React.FC<ActiveSignalCardProps> = ({ state, onManualClos
                 {statusInfo.icon}
                 <span className="ml-1">{statusInfo.text}</span>
               </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-muted-foreground/80"
+                onClick={() => setExpanded(false)}
+                title="Minimizar"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
