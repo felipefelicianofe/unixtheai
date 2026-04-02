@@ -19,7 +19,6 @@ serve(async (req) => {
 
     console.log("[run-auto-management] Starting scheduled run...");
 
-    // Fetch all active configs
     const { data: configs, error: cfgErr } = await supabase
       .from("auto_management_configs")
       .select("*")
@@ -42,26 +41,23 @@ serve(async (req) => {
 
     const now = new Date();
     let processed = 0;
+    let skipped = 0;
 
+    // ── FIX #4: Determine which configs are ready to run ──
+    const readyConfigs: typeof configs = [];
     for (const config of configs) {
-      // Check if enough time has elapsed since last run
       if (config.last_run_at) {
-        const lastRun = new Date(config.last_run_at);
-        const elapsedMinutes = (now.getTime() - lastRun.getTime()) / 60000;
+        const elapsedMinutes = (now.getTime() - new Date(config.last_run_at).getTime()) / 60000;
         if (elapsedMinutes < config.analysis_period_minutes) {
-          console.log(`[run-auto-management] Skipping ${config.asset} ${config.timeframe} — only ${elapsedMinutes.toFixed(1)}m elapsed (need ${config.analysis_period_minutes}m)`);
+          skipped++;
           continue;
         }
       }
 
-      // ══════════════════════════════════════════════════════════
-      // CRITICAL GUARD: Check if this asset already has an active
-      // (PENDING/WIN_TP1/WIN_TP2) non-neutral signal.
-      // If so, skip — never open a second position on the same asset.
-      // ══════════════════════════════════════════════════════════
-      const { data: activeSignals, error: activeErr } = await supabase
+      // Check for existing active signal
+      const { data: activeSignals } = await supabase
         .from("auto_management_history")
-        .select("id, signal, status, created_at")
+        .select("id, signal, status")
         .eq("asset", config.asset)
         .in("status", ["PENDING", "WIN_TP1", "WIN_TP2"])
         .not("signal", "in", '("NEUTRO","NEUTRAL")')
@@ -69,128 +65,132 @@ serve(async (req) => {
         .is("closed_at", null)
         .limit(1);
 
-      if (activeErr) {
-        console.error(`[run-auto-management] Error checking active signals for ${config.asset}:`, activeErr.message);
-      }
-
       if (activeSignals && activeSignals.length > 0) {
-        const existing = activeSignals[0];
-        console.log(`[run-auto-management] 🔒 SKIPPING ${config.asset} ${config.timeframe} — Active signal exists (id=${existing.id}, signal=${existing.signal}, status=${existing.status}, since=${existing.created_at}). No new entry allowed until current signal completes.`);
-        // Still update last_run_at so we don't spam the check every cycle
+        console.log(`[run-auto-management] 🔒 SKIPPING ${config.asset} — Active signal exists`);
         await supabase
           .from("auto_management_configs")
           .update({ last_run_at: now.toISOString() })
           .eq("id", config.id);
+        skipped++;
         continue;
       }
 
-      console.log(`[run-auto-management] Running analysis for ${config.asset} ${config.timeframe}...`);
+      readyConfigs.push(config);
+    }
 
-      try {
-        // Add delay between sequential calls to avoid rate limiting
-        if (processed > 0) {
-          console.log(`[run-auto-management] Waiting 5s before next analysis...`);
-          await new Promise(r => setTimeout(r, 5000));
-        }
+    if (readyConfigs.length === 0) {
+      console.log(`[run-auto-management] No configs ready. (${skipped} skipped)`);
+      return new Response(
+        JSON.stringify({ success: true, processed: 0, skipped, total: configs.length }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-        // Call the analyze-asset edge function with retry on 503
-        const analyzeUrl = `${supabaseUrl}/functions/v1/analyze-asset`;
-        let analyzeResponse: Response | null = null;
-        const maxRetries = 2;
-        
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-          analyzeResponse = await fetch(analyzeUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${serviceRoleKey}`,
-            },
-            body: JSON.stringify({
+    // ── FIX #4: Process in batches of 2 (parallel) with 2s delay between batches ──
+    const BATCH_SIZE = 2;
+    const BATCH_DELAY_MS = 2000;
+
+    for (let i = 0; i < readyConfigs.length; i += BATCH_SIZE) {
+      const batch = readyConfigs.slice(i, i + BATCH_SIZE);
+
+      if (i > 0) {
+        await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+      }
+
+      const results = await Promise.allSettled(
+        batch.map(async (config) => {
+          console.log(`[run-auto-management] Running analysis for ${config.asset} ${config.timeframe}...`);
+
+          const analyzeUrl = `${supabaseUrl}/functions/v1/analyze-asset`;
+          let analyzeResponse: Response | null = null;
+          const maxRetries = 1; // Reduced from 2 to save time
+
+          for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            analyzeResponse = await fetch(analyzeUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                asset: config.asset,
+                timeframe: config.timeframe,
+              }),
+            });
+
+            if (analyzeResponse.ok) break;
+
+            if (analyzeResponse.status === 503 && attempt < maxRetries) {
+              console.warn(`[run-auto-management] ${config.asset}: 503, retrying...`);
+              await new Promise(r => setTimeout(r, 3000));
+              continue;
+            }
+          }
+
+          if (!analyzeResponse || !analyzeResponse.ok) {
+            const errText = analyzeResponse ? await analyzeResponse.text() : "No response";
+            throw new Error(`Analysis failed for ${config.asset}: ${errText}`);
+          }
+
+          const result = await analyzeResponse.json();
+          const header = result.header || {};
+          const rm = result.risk_management || {};
+          const rawSignal = String(header.signal || "NEUTRO");
+          const normalizedSignal = rawSignal.trim().toUpperCase();
+          const signal = normalizedSignal === "BUY" || normalizedSignal === "LONG"
+            ? "COMPRA"
+            : normalizedSignal === "SELL" || normalizedSignal === "SHORT"
+              ? "VENDA"
+              : normalizedSignal;
+          const isNeutral = signal === "NEUTRO" || signal === "NEUTRAL";
+
+          const { error: insertErr } = await supabase
+            .from("auto_management_history")
+            .insert({
+              config_id: config.id,
               asset: config.asset,
               timeframe: config.timeframe,
-            }),
-          });
-          
-          if (analyzeResponse.ok) break;
-          
-          // If 503 (no real data), retry after delay
-          if (analyzeResponse.status === 503 && attempt < maxRetries) {
-            const retryDelay = (attempt + 1) * 5000;
-            console.warn(`[run-auto-management] ${config.asset}: No real data (503), retrying in ${retryDelay}ms (attempt ${attempt + 1}/${maxRetries})`);
-            await new Promise(r => setTimeout(r, retryDelay));
-            continue;
-          }
+              signal,
+              signal_strength_pct: header.signal_strength_pct || null,
+              final_confidence_pct: header.final_confidence_pct || null,
+              entry_price: isNeutral ? null : (rm.entry_price || null),
+              stop_loss: isNeutral ? null : (rm.stop_loss || null),
+              current_stop_loss: isNeutral ? null : (rm.stop_loss || null), // Initialize current_stop_loss = stop_loss
+              take_profit_1: isNeutral ? null : (rm.take_profit_1 || null),
+              take_profit_2: isNeutral ? null : (rm.take_profit_2 || null),
+              take_profit_3: isNeutral ? null : (rm.take_profit_3 || null),
+              trend: header.trend || null,
+              risk_reward_ratio: isNeutral ? null : (rm.risk_reward_ratio || null),
+              executive_summary: result.institutional_synthesis?.executive_summary || null,
+              full_result: result,
+              status: isNeutral ? "NEUTRAL" : "PENDING",
+            });
+
+          if (insertErr) throw new Error(`Insert failed for ${config.asset}: ${insertErr.message}`);
+
+          await supabase
+            .from("auto_management_configs")
+            .update({ last_run_at: now.toISOString() })
+            .eq("id", config.id);
+
+          console.log(`[run-auto-management] ✅ ${config.asset} ${config.timeframe} — Signal: ${signal}, Confidence: ${header.final_confidence_pct}%`);
+          return config.asset;
+        })
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          processed++;
+        } else {
+          console.error(`[run-auto-management] ❌ ${result.reason}`);
         }
-
-        if (!analyzeResponse || !analyzeResponse.ok) {
-          const errText = analyzeResponse ? await analyzeResponse.text() : "No response";
-          console.error(`[run-auto-management] Analysis failed for ${config.asset}: ${errText}`);
-          continue;
-        }
-
-        const result = await analyzeResponse.json();
-
-        // Extract fields from analysis result
-        const header = result.header || {};
-        const rm = result.risk_management || {};
-        const rawSignal = String(header.signal || "NEUTRO");
-        const normalizedSignal = rawSignal.trim().toUpperCase();
-        const signal = normalizedSignal === "BUY" || normalizedSignal === "LONG"
-          ? "COMPRA"
-          : normalizedSignal === "SELL" || normalizedSignal === "SHORT"
-            ? "VENDA"
-            : normalizedSignal;
-        const isNeutral = signal === "NEUTRO" || signal === "NEUTRAL";
-
-        // Insert into auto_management_history
-        // NEUTRAL signals: no price targets, status = NEUTRAL (not verifiable)
-        const { error: insertErr } = await supabase
-          .from("auto_management_history")
-          .insert({
-            config_id: config.id,
-            asset: config.asset,
-            timeframe: config.timeframe,
-            signal: signal,
-            signal_strength_pct: header.signal_strength_pct || null,
-            final_confidence_pct: header.final_confidence_pct || null,
-            entry_price: isNeutral ? null : (rm.entry_price || null),
-            stop_loss: isNeutral ? null : (rm.stop_loss || null),
-            take_profit_1: isNeutral ? null : (rm.take_profit_1 || null),
-            take_profit_2: isNeutral ? null : (rm.take_profit_2 || null),
-            take_profit_3: isNeutral ? null : (rm.take_profit_3 || null),
-            trend: header.trend || null,
-            risk_reward_ratio: isNeutral ? null : (rm.risk_reward_ratio || null),
-            executive_summary: result.institutional_synthesis?.executive_summary || null,
-            full_result: result,
-            status: isNeutral ? "NEUTRAL" : "PENDING",
-          });
-
-        if (insertErr) {
-          console.error(`[run-auto-management] Insert failed for ${config.asset}:`, insertErr.message);
-          continue;
-        }
-
-        // Update last_run_at
-        const { error: updateErr } = await supabase
-          .from("auto_management_configs")
-          .update({ last_run_at: now.toISOString() })
-          .eq("id", config.id);
-
-        if (updateErr) {
-          console.error(`[run-auto-management] Update last_run_at failed:`, updateErr.message);
-        }
-
-        processed++;
-        console.log(`[run-auto-management] ✅ ${config.asset} ${config.timeframe} — Signal: ${header.signal}, Confidence: ${header.final_confidence_pct}%`);
-      } catch (err) {
-        console.error(`[run-auto-management] Error processing ${config.asset}:`, err);
       }
     }
 
-    console.log(`[run-auto-management] Done. Processed ${processed}/${configs.length} configs.`);
+    console.log(`[run-auto-management] Done. Processed ${processed}/${readyConfigs.length} (${skipped} skipped).`);
 
     return new Response(
-      JSON.stringify({ success: true, processed, total: configs.length }),
+      JSON.stringify({ success: true, processed, skipped, total: configs.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
