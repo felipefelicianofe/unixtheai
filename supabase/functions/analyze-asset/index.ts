@@ -970,8 +970,9 @@ function calcDeterministicSignal(
     }
   }
 
-  // Signal strength: how dominant is the winning side
-  const signalStrength = maxWeight > 0 ? (Math.abs(netScore) / maxWeight) * 100 : 0;
+  // Signal strength: how dominant is the winning side (excluding neutral weights from denominator)
+  const activeWeight = totalBuy + totalSell;
+  const signalStrength = activeWeight > 0 ? (Math.abs(netScore) / activeWeight) * 100 : 0;
 
   const signal: "COMPRA" | "VENDA" | "NEUTRO" = 
     rawSignal === "BUY" ? "COMPRA" : rawSignal === "SELL" ? "VENDA" : "NEUTRO";
