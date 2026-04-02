@@ -19,6 +19,22 @@ serve(async (req) => {
 
     console.log("[run-auto-management] Starting scheduled run...");
 
+    // ── Cleanup: hard-delete neutral signals older than 1 hour ──
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: deletedNeutrals, error: cleanupErr } = await supabase
+      .from("auto_management_history")
+      .delete()
+      .in("signal", ["NEUTRO", "NEUTRAL"])
+      .in("status", ["NEUTRAL", "PENDING"])
+      .lt("created_at", oneHourAgo)
+      .select("id");
+
+    if (cleanupErr) {
+      console.warn("[run-auto-management] Neutral cleanup error:", cleanupErr.message);
+    } else {
+      console.log(`[run-auto-management] Cleaned up ${deletedNeutrals?.length || 0} old neutral records`);
+    }
+
     const { data: configs, error: cfgErr } = await supabase
       .from("auto_management_configs")
       .select("*")
