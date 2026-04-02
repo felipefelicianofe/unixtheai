@@ -64,12 +64,14 @@ export function useAutoManagement() {
   const { data: history, isLoading: loadingHistory } = useQuery({
     queryKey: ['auto-management-history'],
     queryFn: async () => {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('auto_management_history')
         .select(`*, auto_management_configs (asset, timeframe, analysis_period_minutes, leverage)`)
         .is('deleted_at', null)
+        .or(`signal.not.in.(NEUTRO,NEUTRAL),created_at.gte.${oneHourAgo}`)
         .order('created_at', { ascending: false })
-        .limit(10000);
+        .limit(500);
       if (error) throw error;
       return (data as unknown) as HistoryRow[];
     },
