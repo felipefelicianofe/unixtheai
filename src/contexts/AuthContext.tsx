@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -22,34 +22,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
 
   const checkAdmin = async (userId: string) => {
     try {
       console.log(`[AuthContext] Checking admin for ${userId}...`);
-      
-      // 1. Primary check via RPC (security definer bypasses RLS)
+
       const { data, error: rpcError } = await supabase.rpc("has_role", {
         _role: "admin",
-        _user_id: userId
+        _user_id: userId,
       });
-      
+
+      if (!mountedRef.current) return;
+
       if (!rpcError) {
         console.log(`[AuthContext] has_role RPC result: ${data}`);
         setIsAdmin(data === true);
-        setLoading(false);
         return;
       }
 
-      console.warn("[AuthContext] has_role RPC failed, trying fallback direct query...", rpcError);
+      console.warn("[AuthContext] has_role RPC failed, trying fallback...", rpcError);
 
-      // 2. Fallback check via direct table query (if RPC is missing or failing)
-      // This works if the user has SELECT permission on their own role in user_roles
       const { data: roleData, error: tableError } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle();
+
+      if (!mountedRef.current) return;
 
       if (tableError) {
         console.error("[AuthContext] Direct query fallback also failed:", tableError);
@@ -60,28 +61,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err) {
       console.error("[AuthContext] Unexpected error in checkAdmin:", err);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
+      if (mountedRef.current) setIsAdmin(false);
     }
   };
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
-    // Unify handling using onAuthStateChange which provides the initial session too
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // 1. Restore session from storage FIRST — this prevents race conditions
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mountedRef.current) return;
+
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        await checkAdmin(currentUser.id);
+      }
+
+      if (mountedRef.current) {
+        setLoading(false);
+        console.log("[AuthContext] Initial session restored, loading=false");
+      }
+    });
+
+    // 2. Listen for SUBSEQUENT auth changes (sign-in, sign-out, token refresh)
+    //    Do NOT await async calls here — fire and forget to avoid deadlocks
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mountedRef.current) return;
+
       console.log(`[AuthContext] Auth event: ${event}`);
-      
-      if (!mounted) return;
+
+      // Skip INITIAL_SESSION — already handled by getSession above
+      if (event === "INITIAL_SESSION") return;
 
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
         setLoading(true);
-        // We call checkAdmin directly but safely
-        await checkAdmin(currentUser.id);
+        // Fire-and-forget — no await inside onAuthStateChange
+        checkAdmin(currentUser.id).finally(() => {
+          if (mountedRef.current) setLoading(false);
+        });
       } else {
         setIsAdmin(false);
         setLoading(false);
@@ -89,7 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
-      mounted = false;
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
   }, []);
