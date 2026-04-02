@@ -39,9 +39,62 @@ const AutoGerenciamentoV2 = () => {
           <p className="text-muted-foreground mt-2">
             Monitoramento 24/7 com sinais de entrada em tempo real e calibração dinâmica.
           </p>
-        </motion.div>
 
-        {/* Global Loading State */}
+          {/* Reset Action Buttons */}
+          <div className="flex flex-wrap gap-3 mt-4">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-destructive/40 text-destructive hover:bg-destructive/10 gap-2">
+                  <XCircle className="w-4 h-4" />
+                  Fechar todos os sinais ativos
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Fechar todos os sinais ativos?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Todos os sinais com status PENDING, WIN_TP1 e WIN_TP2 serão fechados como NEUTRAL com motivo MANUAL_RESET. Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => am.closeAllSignalsMutation.mutate()}
+                  >
+                    Confirmar — Fechar Sinais
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-destructive/40 text-destructive hover:bg-destructive/10 gap-2">
+                  <Trash2 className="w-4 h-4" />
+                  Limpar todo o histórico
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Limpar todo o histórico?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Todos os registros serão movidos para a Lixeira (soft-delete). Você poderá restaurá-los na aba Lixeira se necessário.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => am.clearAllHistoryMutation.mutate()}
+                  >
+                    Confirmar — Limpar Tudo
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </motion.div>
         {(am.loadingConfigs || am.loadingHistory) ? (
           <motion.div 
             initial={{ opacity: 0 }} 
