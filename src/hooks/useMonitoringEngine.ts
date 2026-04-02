@@ -427,6 +427,8 @@ export function useMonitoringEngine(enabled: boolean = true) {
         sig.peakPnlPct = Math.max(sig.peakPnlPct, pnl);
 
         // Update current price on DB periodically (don't spam — every 6th tick = ~60s)
+        // FIX #6: Only update price/pnl fields — do NOT overwrite status fields
+        // that the server-side verify-management-results may have already set
         if (updated.requestCount % 6 === 0) {
           supabase
             .from("auto_management_history")
@@ -434,10 +436,33 @@ export function useMonitoringEngine(enabled: boolean = true) {
               current_price: price,
               virtual_pnl_pct: pnl / 100,
               peak_pnl_pct: sig.peakPnlPct,
-              last_verified_at: new Date().toISOString(),
+              // NOTE: do NOT set last_verified_at here — reserve it for server-side
             })
             .eq("id", sig.historyId)
             .then(() => {});
+
+          // FIX #6: Check if server already closed this signal
+          supabase
+            .from("auto_management_history")
+            .select("status, closed_at, current_stop_loss")
+            .eq("id", sig.historyId)
+            .single()
+            .then(({ data: dbRow }) => {
+              if (dbRow?.closed_at) {
+                // Server already closed this signal — release it client-side
+                const newS = new Map(statesRef.current);
+                const st = newS.get(symbol);
+                if (st?.activeSignal?.historyId === sig.historyId) {
+                  newS.set(symbol, { ...st, status: "MONITORING", activeSignal: null });
+                  setAssetStates(newS);
+                  persistSignals(newS);
+                  console.log(`[MonitorEngine] 🔄 Server already closed ${symbol} (${dbRow.status}) — syncing client`);
+                }
+              } else if (dbRow?.current_stop_loss && dbRow.current_stop_loss !== sig.currentStopLoss) {
+                // Server updated trailing stop — sync it
+                sig.currentStopLoss = dbRow.current_stop_loss;
+              }
+            });
         }
 
         // Check Stop Loss
