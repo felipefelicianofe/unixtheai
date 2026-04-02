@@ -9,7 +9,6 @@ import AIAssistant from "@/components/livetrade/AIAssistant";
 import LivePositionsPanel from "@/components/livetrade/LivePositionsPanel";
 import TradeHistory from "@/components/livetrade/TradeHistory";
 import LiveTicker from "@/components/dashboard/LiveTicker";
-import TradingChart from "@/components/dashboard/TradingChart";
 import { useLiveTradeEngine } from "@/hooks/useLiveTradeEngine";
 import { useOrderBook } from "@/hooks/useOrderBook";
 import { toBinanceSymbol } from "@/hooks/useBinanceSocket";
