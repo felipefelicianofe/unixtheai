@@ -176,12 +176,21 @@ export default function LiveTrade() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Chart + Depth */}
             <div className="lg:col-span-2 space-y-4">
-              <div className="glass-card rounded-2xl p-4 border border-border/20" style={{ height: 420 }}>
-                <TradingChart
-                  asset={selectedAsset.replace("USDT", "/USDT")}
-                  lastKline={null}
-                  klineInterval="15m"
-                />
+              <div className="glass-card rounded-2xl p-5 border border-border/20 flex flex-col items-center justify-center" style={{ height: 420 }}>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-foreground mb-1">
+                    {selectedAsset.replace("USDT", "/USDT")} • 15m
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">Gráfico em tempo real</p>
+                  {ticker && (
+                    <div className="text-4xl font-black font-mono text-foreground">
+                      ${ticker.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-4">
+                    Integre com TradingView para gráficos avançados
+                  </p>
+                </div>
               </div>
               <DepthChart orderBook={orderBook} connected={bookConnected} />
             </div>
