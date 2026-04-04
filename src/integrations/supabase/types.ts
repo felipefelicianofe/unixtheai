@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+        }
+        Relationships: []
+      }
       analysis_history: {
         Row: {
           asset: string
@@ -480,6 +504,51 @@ export type Database = {
           is_testnet?: boolean
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      daily_reports: {
+        Row: {
+          best_signal: Json | null
+          breakdown_by_asset: Json | null
+          breakdown_by_timeframe: Json | null
+          created_at: string
+          id: string
+          report_date: string
+          total_losses: number | null
+          total_neutral: number | null
+          total_signals: number | null
+          total_wins: number | null
+          win_rate: number | null
+          worst_signal: Json | null
+        }
+        Insert: {
+          best_signal?: Json | null
+          breakdown_by_asset?: Json | null
+          breakdown_by_timeframe?: Json | null
+          created_at?: string
+          id?: string
+          report_date: string
+          total_losses?: number | null
+          total_neutral?: number | null
+          total_signals?: number | null
+          total_wins?: number | null
+          win_rate?: number | null
+          worst_signal?: Json | null
+        }
+        Update: {
+          best_signal?: Json | null
+          breakdown_by_asset?: Json | null
+          breakdown_by_timeframe?: Json | null
+          created_at?: string
+          id?: string
+          report_date?: string
+          total_losses?: number | null
+          total_neutral?: number | null
+          total_signals?: number | null
+          total_wins?: number | null
+          win_rate?: number | null
+          worst_signal?: Json | null
         }
         Relationships: []
       }

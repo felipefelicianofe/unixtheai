@@ -489,17 +489,19 @@ export function useMonitoringEngine(enabled: boolean = true) {
           sig.tp2Hit = true;
           sig.tp2HitAt = new Date().toISOString();
           updated.status = "TP2_HIT";
-          // SL already at breakeven from TP1
+          // TRAILING STOP: Move SL to TP1 level after TP2 hit (lock profit)
+          sig.currentStopLoss = sig.takeProfit1;
           supabase
             .from("auto_management_history")
             .update({
               signal_status: "TP2_HIT",
               tp2_hit_at: sig.tp2HitAt,
               tp2_hit_time: sig.tp2HitAt,
+              current_stop_loss: sig.takeProfit1,
             })
             .eq("id", sig.historyId)
             .then(() => {});
-          console.log(`[MonitorEngine] 🎯🎯 TP2 HIT for ${symbol} at ${price}`);
+          console.log(`[MonitorEngine] 🎯🎯 TP2 HIT for ${symbol} at ${price} — SL moved to TP1 (${sig.takeProfit1})`);
         }
 
         // Check TP1

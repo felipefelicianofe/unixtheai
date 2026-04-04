@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Target, Trash2, XCircle } from "lucide-react";
+import { Target, Trash2, XCircle, Download } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
+import { exportToCSV } from "@/lib/exportData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { HistoryTab } from "@/components/automanagement/sections/HistoryTab";
 import { RefinementTab } from "@/components/automanagement/sections/RefinementTab";
 import { TrashTab } from "@/components/automanagement/sections/TrashTab";
 import { BacktestDetailDialog } from "@/components/automanagement/sections/BacktestDetailDialog";
+import IndicatorAnalytics from "@/components/automanagement/sections/IndicatorAnalytics";
 
 const AutoGerenciamentoV2 = () => {
   const am = useAutoManagement();
@@ -170,11 +172,40 @@ const AutoGerenciamentoV2 = () => {
           </motion.div>
         )}
 
+        {/* Export Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-xs"
+            onClick={() => {
+              if (!am.history?.length) return;
+              exportToCSV(
+                am.history.map((h) => ({
+                  data: h.created_at,
+                  ativo: h.asset,
+                  sinal: h.signal || "",
+                  status: h.status,
+                  entrada: h.entry_price || "",
+                  sl: h.stop_loss || "",
+                  tp1: h.take_profit_1 || "",
+                  pnl: h.virtual_pnl_pct || "",
+                  confianca: h.final_confidence_pct || "",
+                })),
+                `historico_${new Date().toISOString().slice(0, 10)}`
+              );
+            }}
+          >
+            <Download className="w-3 h-3" /> Exportar Histórico (CSV)
+          </Button>
+        </div>
+
         <Tabs defaultValue="configs" className="w-full">
-          <TabsList className="mb-6 grid w-full md:w-[600px] grid-cols-4">
+          <TabsList className="mb-6 grid w-full md:w-[750px] grid-cols-5">
             <TabsTrigger value="configs">Configurações</TabsTrigger>
-            <TabsTrigger value="history">Histórico & Verificação</TabsTrigger>
-            <TabsTrigger value="refinement">🧠 Auto-Refinamento</TabsTrigger>
+            <TabsTrigger value="history">Histórico</TabsTrigger>
+            <TabsTrigger value="refinement">🧠 Refinamento</TabsTrigger>
+            <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
             <TabsTrigger value="trash">🗑️ Lixeira{am.deletedHistory && am.deletedHistory.length > 0 ? ` (${am.deletedHistory.length})` : ''}</TabsTrigger>
           </TabsList>
 
@@ -213,6 +244,10 @@ const AutoGerenciamentoV2 = () => {
               refineMutation={am.refineMutation}
               setBacktestDetailLog={setBacktestDetailLog}
             />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <IndicatorAnalytics />
           </TabsContent>
 
           <TabsContent value="trash">

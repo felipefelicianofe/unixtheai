@@ -12,6 +12,7 @@ import AutoTrade from "./pages/AutoTrade.tsx";
 import AutoTesteAdmin from "./pages/AutoTesteAdmin.tsx";
 import AutoGerenciamento from "./pages/AutoGerenciamentoV2.tsx";
 import LiveTrade from "./pages/LiveTrade.tsx";
+import AdminPanel from "./pages/AdminPanel.tsx";
 import Login from "./pages/Login.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/autoteste" element={<AdminRoute><AutoTesteAdmin /></AdminRoute>} />
             <Route path="/autogerenciamento" element={<AdminRoute><AutoGerenciamento /></AdminRoute>} />
             <Route path="/livetrade" element={<AdminRoute><LiveTrade /></AdminRoute>} />
+            <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
