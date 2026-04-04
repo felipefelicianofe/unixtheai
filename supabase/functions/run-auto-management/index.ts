@@ -42,14 +42,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     return { passed: false, reason: `LOW_CONFIDENCE(${confidence}%<${MIN_CONFIDENCE_PCT}%)`, overrideToNeutral: true };
   }
 
-  // #2 - Confluence threshold
-  const confluence = result._master?.quality_score || result.technical_indicators?.confluence?.confidence || 0;
-  // Use signal_strength as proxy for confluence if no explicit value
-  const effectiveConfluence = confluence > 0 ? confluence : (header.signal_strength_pct || 0);
-  if (effectiveConfluence < MIN_CONFLUENCE_PCT) {
-    return { passed: false, reason: `LOW_CONFLUENCE(${effectiveConfluence}%<${MIN_CONFLUENCE_PCT}%)`, overrideToNeutral: true };
-  }
-
   // #3 - HTF Mandatory Kill Zone
   if (HTF_MANDATORY && result._htf_bias) {
     const htfBias = result._htf_bias;
@@ -57,16 +49,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     const isSell = signal === "VENDA";
     if ((isBuy && htfBias === "SELL") || (isSell && htfBias === "BUY")) {
       return { passed: false, reason: `HTF_DISAGREEMENT(signal=${signal},htf=${htfBias})`, overrideToNeutral: true };
-    }
-  }
-
-  // #4 - Volume filter
-  const volumeProfile = ti.volume_profile || "";
-  if (typeof volumeProfile === "string" && volumeProfile.toLowerCase().includes("low")) {
-    // Also check volume_delta if available
-    const vd = result._volume_delta;
-    if (!vd || (vd.ratio && vd.ratio < MIN_VOLUME_RATIO)) {
-      return { passed: false, reason: `LOW_VOLUME(profile=${volumeProfile})`, overrideToNeutral: true };
     }
   }
 
@@ -81,23 +63,13 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     }
   }
 
-  // #6 - ATR Volatility Gate
-  const atrPercentile = result._atr_percentile?.percentile ?? null;
-  if (atrPercentile !== null && atrPercentile < ATR_PERCENTILE_MIN) {
-    return { passed: false, reason: `LOW_ATR_VOLATILITY(${atrPercentile}th<${ATR_PERCENTILE_MIN}th)`, overrideToNeutral: true };
+  // #9 - Backtest gate
+  const backtest = result._backtest;
+  if (backtest && backtest.total >= 5) {
+    if (backtest.winRate < BACKTEST_MIN_WINRATE) {
+      return { passed: false, reason: `LOW_BACKTEST_WR(${backtest.winRate}%<${BACKTEST_MIN_WINRATE}%)`, overrideToNeutral: true };
+    }
   }
-
-  // #7 - Risk:Reward minimum
-  const entry = rm.entry_price || 0;
-  const sl = rm.stop_loss || 0;
-  const tp1 = rm.take_profit_1 || 0;
-  if (entry > 0 && sl > 0 && tp1 > 0) {
-    const slDistance = Math.abs(entry - sl);
-    const tp1Distance = Math.abs(tp1 - entry);
-    if (slDistance > 0) {
-      const rr = tp1Distance / slDistance;
-      if (rr < MIN_RR_RATIO) {
-        return { passed: false, reason: `LOW_RR(${rr.toFixed(2)}<${MIN_RR_RATIO})`, overrideToNeutral: true };
       }
     }
   }
