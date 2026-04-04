@@ -118,11 +118,13 @@ const AutoGerenciamentoV2 = () => {
             {/* Dashboard Indicators */}
             <DashboardMetrics
               winRate={am.stats.winRate}
+              originalWinRate={am.stats.originalWinRate}
               totalWins={am.stats.totalWins}
               totalLoss={am.stats.totalLoss}
               totalFinalized={am.stats.totalFinalized}
               totalPending={am.stats.totalPending}
               totalNeutral={am.stats.totalNeutral}
+              totalFiltered={am.stats.totalFiltered}
               totalUL={am.stats.totalUL}
               tp1Wins={am.stats.tp1Wins}
               tp2Wins={am.stats.tp2Wins}

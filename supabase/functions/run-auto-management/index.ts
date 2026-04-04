@@ -11,14 +11,10 @@ const corsHeaders = {
 // Quality Gate Thresholds (10-Point Improvement Plan)
 // ═══════════════════════════════════════════════════════════
 const MIN_CONFIDENCE_PCT = 50;         // #1 - Reject signals below 50%
-const MIN_CONFLUENCE_PCT = 52;         // #2 - Raise from 45% to 52%
 const HTF_MANDATORY = true;           // #3 - Kill Zone: HTF disagreement = NEUTRAL
-const MIN_VOLUME_RATIO = 0.5;         // #4 - Volume must be >50% of 20-period avg
 const RSI_OVERBOUGHT = 70;            // #5 - No BUY above 70
 const RSI_OVERSOLD = 30;              // #5 - No SELL below 30
-const ATR_PERCENTILE_MIN = 20;        // #6 - No entries in dead markets
-const MIN_RR_RATIO = 1.5;             // #7 - TP1 must be ≥1.5x SL distance
-const BACKTEST_MIN_WINRATE = 40;      // #9 - Backtest gate
+const BACKTEST_MIN_WINRATE = 35;      // #9 - Backtest gate (calibrated from 40→35)
 const LOSS_COOLDOWN_MULTIPLIER = 2;   // #10 - 2x analysis_period cooldown after loss
 
 // ═══════════════════════════════════════════════════════════
@@ -46,14 +42,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     return { passed: false, reason: `LOW_CONFIDENCE(${confidence}%<${MIN_CONFIDENCE_PCT}%)`, overrideToNeutral: true };
   }
 
-  // #2 - Confluence threshold
-  const confluence = result._master?.quality_score || result.technical_indicators?.confluence?.confidence || 0;
-  // Use signal_strength as proxy for confluence if no explicit value
-  const effectiveConfluence = confluence > 0 ? confluence : (header.signal_strength_pct || 0);
-  if (effectiveConfluence < MIN_CONFLUENCE_PCT) {
-    return { passed: false, reason: `LOW_CONFLUENCE(${effectiveConfluence}%<${MIN_CONFLUENCE_PCT}%)`, overrideToNeutral: true };
-  }
-
   // #3 - HTF Mandatory Kill Zone
   if (HTF_MANDATORY && result._htf_bias) {
     const htfBias = result._htf_bias;
@@ -61,16 +49,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     const isSell = signal === "VENDA";
     if ((isBuy && htfBias === "SELL") || (isSell && htfBias === "BUY")) {
       return { passed: false, reason: `HTF_DISAGREEMENT(signal=${signal},htf=${htfBias})`, overrideToNeutral: true };
-    }
-  }
-
-  // #4 - Volume filter
-  const volumeProfile = ti.volume_profile || "";
-  if (typeof volumeProfile === "string" && volumeProfile.toLowerCase().includes("low")) {
-    // Also check volume_delta if available
-    const vd = result._volume_delta;
-    if (!vd || (vd.ratio && vd.ratio < MIN_VOLUME_RATIO)) {
-      return { passed: false, reason: `LOW_VOLUME(profile=${volumeProfile})`, overrideToNeutral: true };
     }
   }
 
@@ -82,27 +60,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
     }
     if (signal === "VENDA" && rsi < RSI_OVERSOLD) {
       return { passed: false, reason: `RSI_OVERSOLD(${rsi}<${RSI_OVERSOLD})`, overrideToNeutral: true };
-    }
-  }
-
-  // #6 - ATR Volatility Gate
-  const atrPercentile = result._atr_percentile?.percentile ?? null;
-  if (atrPercentile !== null && atrPercentile < ATR_PERCENTILE_MIN) {
-    return { passed: false, reason: `LOW_ATR_VOLATILITY(${atrPercentile}th<${ATR_PERCENTILE_MIN}th)`, overrideToNeutral: true };
-  }
-
-  // #7 - Risk:Reward minimum
-  const entry = rm.entry_price || 0;
-  const sl = rm.stop_loss || 0;
-  const tp1 = rm.take_profit_1 || 0;
-  if (entry > 0 && sl > 0 && tp1 > 0) {
-    const slDistance = Math.abs(entry - sl);
-    const tp1Distance = Math.abs(tp1 - entry);
-    if (slDistance > 0) {
-      const rr = tp1Distance / slDistance;
-      if (rr < MIN_RR_RATIO) {
-        return { passed: false, reason: `LOW_RR(${rr.toFixed(2)}<${MIN_RR_RATIO})`, overrideToNeutral: true };
-      }
     }
   }
 
