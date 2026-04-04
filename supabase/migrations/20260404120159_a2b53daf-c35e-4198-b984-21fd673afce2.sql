@@ -1,0 +1,1 @@
+ALTER TABLE public.management_indicator_performance ENABLE ROW LEVEL SECURITY;
