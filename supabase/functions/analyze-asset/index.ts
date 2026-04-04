@@ -664,9 +664,9 @@ function regimeFilteredBacktest(
     
     const entry = closes[i];
     const sl = entry - entryDir * slDistance;
-    const tp1 = entry + entryDir * slDistance;
-    const tp2 = entry + entryDir * slDistance * 2;
-    const tp3 = entry + entryDir * slDistance * 3;
+    const tp1 = entry + entryDir * slDistance * 1.5;  // Asymmetric: 1.5x
+    const tp2 = entry + entryDir * slDistance * 2.5;  // Asymmetric: 2.5x
+    const tp3 = entry + entryDir * slDistance * 3.5;  // Asymmetric: 3.5x
     
     let hitSL = false, hitTP1 = false, hitTP2 = false, hitTP3 = false;
     for (let j = i + 1; j <= i + lookForward && !hitSL; j++) {
@@ -795,27 +795,26 @@ function calcRiskOfRuin(winRate: number, riskPct: number, avgRR: number): { risk
 // Scale-out strategy recommendation
 function calcScaleOutStrategy(slDistance: number, currentPrice: number, signal: "COMPRA" | "VENDA" | "NEUTRO") {
   const dir = signal === "COMPRA" ? 1 : -1;
-  const tp1 = currentPrice + dir * slDistance;
-  const tp2 = currentPrice + dir * slDistance * 2;
-  const tp3 = currentPrice + dir * slDistance * 3;
+  const tp1 = currentPrice + dir * slDistance * 1.5;
+  const tp2 = currentPrice + dir * slDistance * 2.5;
+  const tp3 = currentPrice + dir * slDistance * 3.5;
   // True Breakeven: entry ± 0.12% (Taker open + Taker close + slippage buffer)
-  // This ensures a STOP_MARKET close at breakeven = zero P&L (not a loss)
   const TRUE_BE_RATE = 0.0012;
   const breakevenAfterTP1 = signal === "COMPRA"
     ? currentPrice * (1 + TRUE_BE_RATE)
     : currentPrice * (1 - TRUE_BE_RATE);
   
   return {
-    strategy: "SCALE_OUT_50_30_20",
-    tp1_close_pct: 50,
-    tp2_close_pct: 30,
-    tp3_close_pct: 20,
+    strategy: "SCALE_OUT_33_33_34",
+    tp1_close_pct: 33,
+    tp2_close_pct: 33,
+    tp3_close_pct: 34,
     tp1_price: parseFloat(tp1.toFixed(6)),
     tp2_price: parseFloat(tp2.toFixed(6)),
     tp3_price: parseFloat(tp3.toFixed(6)),
     move_sl_to_breakeven_at: parseFloat(tp1.toFixed(6)),
     breakeven_price: parseFloat(breakevenAfterTP1.toFixed(6)),
-    description: `Feche 50% no TP1 ($${tp1.toFixed(2)}), mova SL para breakeven ($${breakevenAfterTP1.toFixed(2)}). Feche 30% no TP2 ($${tp2.toFixed(2)}). Runner 20% no TP3 ($${tp3.toFixed(2)}).`,
+    description: `Feche 33% no TP1 ($${tp1.toFixed(2)}), mova SL para breakeven ($${breakevenAfterTP1.toFixed(2)}). Feche 33% no TP2 ($${tp2.toFixed(2)}). Runner 34% no TP3 ($${tp3.toFixed(2)}).`,
   };
 }
 
@@ -911,13 +910,12 @@ function calcDeterministicSignal(
   const netScore = totalBuy - totalSell;
   const dominantPct = Math.max(buyPct, sellPct);
   
-  // Minimum threshold for non-neutral: dominant side must have >45% weight
-  // (Reference platform emits signals with ~43% bullish factors)
+  // Minimum threshold for non-neutral: dominant side must have >50% weight
+  // (Raised from 45% to improve signal quality and reduce noise)
   let rawSignal: "BUY" | "SELL" | "NEUTRAL";
-  if (dominantPct < 45) {
+  if (dominantPct < 50) {
     rawSignal = "NEUTRAL";
   } else if (totalBuy > totalSell) {
-    // Tier1 disagreement: penalize confidence instead of forcing NEUTRAL
     rawSignal = "BUY";
   } else {
     rawSignal = "SELL";
@@ -927,20 +925,20 @@ function calcDeterministicSignal(
   let htfAgreement = true;
   let confidence = dominantPct;
 
-  // Tier 1 structure penalty (instead of veto)
+  // Tier 1 structure HARD GATE: if structure disagrees, force NEUTRAL
   if (rawSignal !== "NEUTRAL") {
     if ((rawSignal === "BUY" && tier1Direction === "SELL") || (rawSignal === "SELL" && tier1Direction === "BUY")) {
-      confidence *= 0.80; // 20% penalty instead of forcing NEUTRAL
-      console.log(`[SIGNAL] Tier1 penalty: ${rawSignal} but structure is ${tier1Direction}. Confidence reduced.`);
+      console.log(`[SIGNAL] Tier1 VETO: ${rawSignal} but structure is ${tier1Direction}. Forcing NEUTRAL.`);
+      rawSignal = "NEUTRAL";
     }
   }
   
   if (htfBias && htfBias !== "NEUTRAL" && rawSignal !== "NEUTRAL") {
     if ((rawSignal === "BUY" && htfBias === "SELL") || (rawSignal === "SELL" && htfBias === "BUY")) {
-      // HTF disagrees — penalize 30% instead of forcing NEUTRAL
+      // HTF disagrees — force NEUTRAL (Kill Zone)
       htfAgreement = false;
-      confidence *= 0.70;
-      console.log(`[SIGNAL] HTF penalty: ${rawSignal} but HTF is ${htfBias}. Confidence reduced to ${confidence.toFixed(1)}%.`);
+      console.log(`[SIGNAL] HTF VETO: ${rawSignal} but HTF is ${htfBias}. Forcing NEUTRAL.`);
+      rawSignal = "NEUTRAL";
     } else if ((rawSignal === "BUY" && htfBias === "BUY") || (rawSignal === "SELL" && htfBias === "SELL")) {
       // HTF confirms — boost confidence
       htfAgreement = true;
@@ -2651,11 +2649,11 @@ HTF (${htfBinanceInterval || "N/A"}): ${htfBias || "N/A"} — ${deterministicSig
 === STOP LOSS ESTRUTURAL ===
 - Método: ${slResult.method}
 - Stop Loss: ${slResult.stopLoss} (distância: ${slDistance.toFixed(2)})
-- TP1 (1:1): ${(signal === "COMPRA" ? currentPrice + slDistance : currentPrice - slDistance).toFixed(6)}
-- TP2 (1:2): ${(signal === "COMPRA" ? currentPrice + 2 * slDistance : currentPrice - 2 * slDistance).toFixed(6)}
-- TP3 (1:3): ${(signal === "COMPRA" ? currentPrice + 3 * slDistance : currentPrice - 3 * slDistance).toFixed(6)}
+- TP1 (1:1.5): ${(signal === "COMPRA" ? currentPrice + 1.5 * slDistance : currentPrice - 1.5 * slDistance).toFixed(6)}
+- TP2 (1:2.5): ${(signal === "COMPRA" ? currentPrice + 2.5 * slDistance : currentPrice - 2.5 * slDistance).toFixed(6)}
+- TP3 (1:3.5): ${(signal === "COMPRA" ? currentPrice + 3.5 * slDistance : currentPrice - 3.5 * slDistance).toFixed(6)}
 
-=== BACKTEST REALISTA (SL=${slDistance.toFixed(2)}, TP=1:1/1:2/1:3) ===
+=== BACKTEST REALISTA (SL=${slDistance.toFixed(2)}, TP=1:1.5/1:2.5/1:3.5) ===
 - Trades testados: ${backtest.total} | Wins: ${backtest.wins} | Losses: ${backtest.losses}
 - Win Rate: ${backtest.winRate}% | Avg R:R: ${backtest.avgRR}
 - TP1 Hits: ${backtest.tp1Hits} | TP2 Hits: ${backtest.tp2Hits} | TP3 Hits: ${backtest.tp3Hits}
@@ -2798,19 +2796,21 @@ REGRAS PARA A IA:
       analysisJson.risk_management.atr_value = parseFloat(ci.atr.toFixed(6));
       analysisJson.risk_management.stop_loss = sl;
       
+      // ASYMMETRIC TPs: TP1=1.5x SL, TP2=2.5x SL, TP3=3.5x SL
+      // This ensures profitability even with <50% win rate
       if (ci.signal === "COMPRA") {
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry + slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry + 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3.5 * slDist).toFixed(6));
       } else if (ci.signal === "VENDA") {
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry - slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry - 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry - 3 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry - 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry - 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry - 3.5 * slDist).toFixed(6));
       } else {
-        // NEUTRO — still provide reference levels
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry + slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3 * slDist).toFixed(6));
+        // NEUTRO — reference levels
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry + 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3.5 * slDist).toFixed(6));
       }
       analysisJson.risk_management.risk_pct = parseFloat((slDist / entry * 100).toFixed(2));
 
