@@ -33,3 +33,6 @@ verify_jwt = false
 [functions.management-auto-refine]
 verify_jwt = false
 
+[functions.binance-public]
+verify_jwt = false
+
