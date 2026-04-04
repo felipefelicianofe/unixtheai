@@ -246,6 +246,10 @@ const AutoGerenciamentoV2 = () => {
             />
           </TabsContent>
 
+          <TabsContent value="analytics">
+            <IndicatorAnalytics />
+          </TabsContent>
+
           <TabsContent value="trash">
             <TrashTab 
               deletedHistory={am.deletedHistory}
