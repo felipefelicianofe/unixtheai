@@ -911,13 +911,12 @@ function calcDeterministicSignal(
   const netScore = totalBuy - totalSell;
   const dominantPct = Math.max(buyPct, sellPct);
   
-  // Minimum threshold for non-neutral: dominant side must have >45% weight
-  // (Reference platform emits signals with ~43% bullish factors)
+  // Minimum threshold for non-neutral: dominant side must have >50% weight
+  // (Raised from 45% to improve signal quality and reduce noise)
   let rawSignal: "BUY" | "SELL" | "NEUTRAL";
-  if (dominantPct < 45) {
+  if (dominantPct < 50) {
     rawSignal = "NEUTRAL";
   } else if (totalBuy > totalSell) {
-    // Tier1 disagreement: penalize confidence instead of forcing NEUTRAL
     rawSignal = "BUY";
   } else {
     rawSignal = "SELL";
