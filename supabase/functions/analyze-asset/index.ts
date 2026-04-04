@@ -936,10 +936,10 @@ function calcDeterministicSignal(
   
   if (htfBias && htfBias !== "NEUTRAL" && rawSignal !== "NEUTRAL") {
     if ((rawSignal === "BUY" && htfBias === "SELL") || (rawSignal === "SELL" && htfBias === "BUY")) {
-      // HTF disagrees — penalize 30% instead of forcing NEUTRAL
+      // HTF disagrees — force NEUTRAL (Kill Zone)
       htfAgreement = false;
-      confidence *= 0.70;
-      console.log(`[SIGNAL] HTF penalty: ${rawSignal} but HTF is ${htfBias}. Confidence reduced to ${confidence.toFixed(1)}%.`);
+      console.log(`[SIGNAL] HTF VETO: ${rawSignal} but HTF is ${htfBias}. Forcing NEUTRAL.`);
+      rawSignal = "NEUTRAL";
     } else if ((rawSignal === "BUY" && htfBias === "BUY") || (rawSignal === "SELL" && htfBias === "SELL")) {
       // HTF confirms — boost confidence
       htfAgreement = true;
