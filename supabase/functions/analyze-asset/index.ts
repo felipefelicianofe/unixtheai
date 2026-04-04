@@ -795,27 +795,26 @@ function calcRiskOfRuin(winRate: number, riskPct: number, avgRR: number): { risk
 // Scale-out strategy recommendation
 function calcScaleOutStrategy(slDistance: number, currentPrice: number, signal: "COMPRA" | "VENDA" | "NEUTRO") {
   const dir = signal === "COMPRA" ? 1 : -1;
-  const tp1 = currentPrice + dir * slDistance;
-  const tp2 = currentPrice + dir * slDistance * 2;
-  const tp3 = currentPrice + dir * slDistance * 3;
+  const tp1 = currentPrice + dir * slDistance * 1.5;
+  const tp2 = currentPrice + dir * slDistance * 2.5;
+  const tp3 = currentPrice + dir * slDistance * 3.5;
   // True Breakeven: entry ± 0.12% (Taker open + Taker close + slippage buffer)
-  // This ensures a STOP_MARKET close at breakeven = zero P&L (not a loss)
   const TRUE_BE_RATE = 0.0012;
   const breakevenAfterTP1 = signal === "COMPRA"
     ? currentPrice * (1 + TRUE_BE_RATE)
     : currentPrice * (1 - TRUE_BE_RATE);
   
   return {
-    strategy: "SCALE_OUT_50_30_20",
-    tp1_close_pct: 50,
-    tp2_close_pct: 30,
-    tp3_close_pct: 20,
+    strategy: "SCALE_OUT_33_33_34",
+    tp1_close_pct: 33,
+    tp2_close_pct: 33,
+    tp3_close_pct: 34,
     tp1_price: parseFloat(tp1.toFixed(6)),
     tp2_price: parseFloat(tp2.toFixed(6)),
     tp3_price: parseFloat(tp3.toFixed(6)),
     move_sl_to_breakeven_at: parseFloat(tp1.toFixed(6)),
     breakeven_price: parseFloat(breakevenAfterTP1.toFixed(6)),
-    description: `Feche 50% no TP1 ($${tp1.toFixed(2)}), mova SL para breakeven ($${breakevenAfterTP1.toFixed(2)}). Feche 30% no TP2 ($${tp2.toFixed(2)}). Runner 20% no TP3 ($${tp3.toFixed(2)}).`,
+    description: `Feche 33% no TP1 ($${tp1.toFixed(2)}), mova SL para breakeven ($${breakevenAfterTP1.toFixed(2)}). Feche 33% no TP2 ($${tp2.toFixed(2)}). Runner 34% no TP3 ($${tp3.toFixed(2)}).`,
   };
 }
 
