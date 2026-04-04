@@ -176,7 +176,7 @@ export default function LiveTrade() {
           {/* Live Ticker */}
           <LiveTicker
             ticker={ticker}
-            connected={wsConnected}
+            connected={wsConnected || connectionStatus === "fallback"}
             priceDirection={priceDirection}
             asset={selectedAsset.replace("USDT", "/USDT")}
           />
