@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Target, Trash2, XCircle } from "lucide-react";
+import { Target, Trash2, XCircle, Download } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
+import { exportToCSV } from "@/lib/exportData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
