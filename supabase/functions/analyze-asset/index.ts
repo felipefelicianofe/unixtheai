@@ -2650,11 +2650,11 @@ HTF (${htfBinanceInterval || "N/A"}): ${htfBias || "N/A"} — ${deterministicSig
 === STOP LOSS ESTRUTURAL ===
 - Método: ${slResult.method}
 - Stop Loss: ${slResult.stopLoss} (distância: ${slDistance.toFixed(2)})
-- TP1 (1:1): ${(signal === "COMPRA" ? currentPrice + slDistance : currentPrice - slDistance).toFixed(6)}
-- TP2 (1:2): ${(signal === "COMPRA" ? currentPrice + 2 * slDistance : currentPrice - 2 * slDistance).toFixed(6)}
-- TP3 (1:3): ${(signal === "COMPRA" ? currentPrice + 3 * slDistance : currentPrice - 3 * slDistance).toFixed(6)}
+- TP1 (1:1.5): ${(signal === "COMPRA" ? currentPrice + 1.5 * slDistance : currentPrice - 1.5 * slDistance).toFixed(6)}
+- TP2 (1:2.5): ${(signal === "COMPRA" ? currentPrice + 2.5 * slDistance : currentPrice - 2.5 * slDistance).toFixed(6)}
+- TP3 (1:3.5): ${(signal === "COMPRA" ? currentPrice + 3.5 * slDistance : currentPrice - 3.5 * slDistance).toFixed(6)}
 
-=== BACKTEST REALISTA (SL=${slDistance.toFixed(2)}, TP=1:1/1:2/1:3) ===
+=== BACKTEST REALISTA (SL=${slDistance.toFixed(2)}, TP=1:1.5/1:2.5/1:3.5) ===
 - Trades testados: ${backtest.total} | Wins: ${backtest.wins} | Losses: ${backtest.losses}
 - Win Rate: ${backtest.winRate}% | Avg R:R: ${backtest.avgRR}
 - TP1 Hits: ${backtest.tp1Hits} | TP2 Hits: ${backtest.tp2Hits} | TP3 Hits: ${backtest.tp3Hits}
