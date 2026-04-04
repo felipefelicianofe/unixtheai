@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Radio, Wifi, WifiOff, Plus, X } from "lucide-react";
+import { Radio, Wifi, WifiOff, Plus, X, Signal, SignalLow } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
 import MultiAssetTicker from "@/components/livetrade/MultiAssetTicker";
 import DepthChart from "@/components/livetrade/DepthChart";
@@ -134,9 +134,19 @@ export default function LiveTrade() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-[hsl(var(--neon-green))] animate-pulse" : "bg-[hsl(var(--neon-red))]"}`} />
+              <div className={`w-2 h-2 rounded-full ${
+                connectionStatus === "live" ? "bg-[hsl(var(--neon-green))] animate-pulse" :
+                connectionStatus === "fallback" ? "bg-yellow-400 animate-pulse" :
+                connectionStatus === "connecting" ? "bg-blue-400 animate-pulse" :
+                connectionStatus === "stale" ? "bg-orange-400" :
+                "bg-[hsl(var(--neon-red))]"
+              }`} />
               <span className="text-xs text-muted-foreground">
-                {wsConnected ? "Conectado" : "Desconectado"}
+                {connectionStatus === "live" ? "Conectado" :
+                 connectionStatus === "fallback" ? "Conectado (REST)" :
+                 connectionStatus === "connecting" ? "Conectando..." :
+                 connectionStatus === "stale" ? "Dados atrasados" :
+                 "Desconectado"}
               </span>
             </div>
           </motion.div>
@@ -166,7 +176,7 @@ export default function LiveTrade() {
           {/* Live Ticker */}
           <LiveTicker
             ticker={ticker}
-            connected={wsConnected}
+            connected={wsConnected || connectionStatus === "fallback"}
             priceDirection={priceDirection}
             asset={selectedAsset.replace("USDT", "/USDT")}
           />

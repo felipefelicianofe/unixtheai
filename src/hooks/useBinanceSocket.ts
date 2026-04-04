@@ -113,14 +113,15 @@ export function toBinanceSymbol(asset: string): string | null {
   return clean.toLowerCase();
 }
 
-// ── REST fallback price fetcher ──
+// ── REST fallback price fetcher (via edge function proxy — no geo-block) ──
 async function fetchRestPrice(symbol: string): Promise<{ price: number; timestamp: number } | null> {
   try {
-    const upper = symbol.toUpperCase();
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${upper}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { price: parseFloat(data.price), timestamp: Date.now() };
+    const { fetchBinancePrice } = await import("@/lib/binanceApi");
+    const price = await fetchBinancePrice(symbol);
+    if (price !== null) {
+      return { price, timestamp: Date.now() };
+    }
+    return null;
   } catch {
     return null;
   }
