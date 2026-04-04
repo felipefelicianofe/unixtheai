@@ -102,41 +102,71 @@ export async function runAutotradeEngine(
   return invokeEdgeFunction("autotrade-engine", { assets, timeframe });
 }
 
-// ── Public Binance REST API (no auth required) ──
+// ── Public Binance Data (via edge function proxy — no geo-block) ──
 
 /**
- * Fetch current price for a single symbol from the public Binance REST API.
- * Used for 10s monitoring polling — zero cost, no API key needed.
+ * Fetch current price for a single symbol via edge function proxy.
+ * Used for REST fallback and monitoring — zero geo-block risk.
  */
 export async function fetchBinancePrice(symbol: string): Promise<number | null> {
   try {
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol.toUpperCase()}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return parseFloat(data.price);
+    const data = await invokePublicProxy({ action: "ticker_price", symbol: symbol.toUpperCase() });
+    return (data as any)?.price ?? null;
   } catch {
     return null;
   }
 }
 
 /**
- * Fetch current prices for multiple symbols in a single request.
- * Much more efficient than individual calls when monitoring 5+ assets.
+ * Fetch current prices for multiple symbols in a single request via proxy.
  * Returns a Map of symbol → price.
  */
 export async function fetchBinancePricesBatch(symbols: string[]): Promise<Map<string, number>> {
   const prices = new Map<string, number>();
   try {
-    // Use the batch endpoint with symbols filter
-    const symbolsParam = JSON.stringify(symbols.map(s => s.toUpperCase()));
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbols=${encodeURIComponent(symbolsParam)}`);
-    if (!res.ok) return prices;
-    const data: Array<{ symbol: string; price: string }> = await res.json();
-    for (const item of data) {
-      prices.set(item.symbol, parseFloat(item.price));
+    const data = await invokePublicProxy({
+      action: "ticker_prices_batch",
+      symbols: symbols.map(s => s.toUpperCase()),
+    });
+    if (data && typeof data === "object") {
+      for (const [symbol, price] of Object.entries(data as Record<string, number>)) {
+        prices.set(symbol, price);
+      }
     }
   } catch {
     // On error, return empty map — caller handles gracefully
   }
   return prices;
+}
+
+/**
+ * Fetch full 24h ticker for a single symbol via proxy.
+ */
+export async function fetchBinanceTicker24h(symbol: string) {
+  try {
+    return await invokePublicProxy({ action: "ticker_24h", symbol: symbol.toUpperCase() });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Invoke the public binance-public edge function (no auth required).
+ */
+async function invokePublicProxy(body: Record<string, unknown>): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke("binance-public", { body });
+
+  if (error) {
+    let msg = error.message;
+    if (data && typeof data === "object" && (data as any).error) {
+      msg = (data as any).error;
+    }
+    throw new Error(msg);
+  }
+
+  if (data && typeof data === "object" && (data as any).error) {
+    throw new Error((data as any).error);
+  }
+
+  return data;
 }
