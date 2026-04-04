@@ -333,13 +333,20 @@ export function useAutoManagement() {
 
   const stats = useMemo(() => {
     const totalNeutral = filteredHistory.length - actionableHistory.length;
-    const totalPending = actionableHistory.filter((h) => h.status === 'PENDING').length;
-    const totalFinalized = actionableHistory.filter((h) => h.status?.startsWith('WIN') || h.status === 'LOSS').length;
-    const totalWins = actionableHistory.filter((h) => h.status?.startsWith('WIN')).length;
-    const totalLoss = actionableHistory.filter((h) => h.status === 'LOSS').length;
+    const totalFiltered = actionableHistory.filter((h) => h.signal_status === 'FILTERED').length;
+    const activeSignals = actionableHistory.filter((h) => h.signal_status !== 'FILTERED');
+    const totalPending = activeSignals.filter((h) => h.status === 'PENDING').length;
+    const totalFinalized = activeSignals.filter((h) => h.status?.startsWith('WIN') || h.status === 'LOSS').length;
+    const totalWins = activeSignals.filter((h) => h.status?.startsWith('WIN')).length;
+    const totalLoss = activeSignals.filter((h) => h.status === 'LOSS').length;
     const winRate = totalWins + totalLoss > 0 ? (totalWins / (totalWins + totalLoss)) * 100 : 0;
 
-    const totalUL = actionableHistory.reduce((sum: number, h) => {
+    // Original WR (without filters) for comparison
+    const allWins = actionableHistory.filter((h) => h.status?.startsWith('WIN')).length;
+    const allLosses = actionableHistory.filter((h) => h.status === 'LOSS').length;
+    const originalWinRate = allWins + allLosses > 0 ? (allWins / (allWins + allLosses)) * 100 : 0;
+
+    const totalUL = activeSignals.reduce((sum: number, h) => {
       if (h.status === 'WIN_TP1') return sum + 1;
       if (h.status === 'WIN_TP2') return sum + 2;
       if (h.status === 'WIN_TP3' || h.status === 'WIN') return sum + 3;
@@ -349,15 +356,17 @@ export function useAutoManagement() {
 
     return {
       totalNeutral,
+      totalFiltered,
       totalPending,
       totalFinalized,
       totalWins,
       totalLoss,
       winRate,
+      originalWinRate,
       totalUL,
-      tp1Wins: actionableHistory.filter((h) => h.status === 'WIN_TP1').length,
-      tp2Wins: actionableHistory.filter((h) => h.status === 'WIN_TP2').length,
-      tp3Wins: actionableHistory.filter((h) => h.status === 'WIN_TP3' || h.status === 'WIN').length,
+      tp1Wins: activeSignals.filter((h) => h.status === 'WIN_TP1').length,
+      tp2Wins: activeSignals.filter((h) => h.status === 'WIN_TP2').length,
+      tp3Wins: activeSignals.filter((h) => h.status === 'WIN_TP3' || h.status === 'WIN').length,
     };
   }, [filteredHistory, actionableHistory]);
 
