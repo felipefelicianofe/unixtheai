@@ -25,6 +25,7 @@ import { HistoryTab } from "@/components/automanagement/sections/HistoryTab";
 import { RefinementTab } from "@/components/automanagement/sections/RefinementTab";
 import { TrashTab } from "@/components/automanagement/sections/TrashTab";
 import { BacktestDetailDialog } from "@/components/automanagement/sections/BacktestDetailDialog";
+import IndicatorAnalytics from "@/components/automanagement/sections/IndicatorAnalytics";
 
 const AutoGerenciamentoV2 = () => {
   const am = useAutoManagement();
