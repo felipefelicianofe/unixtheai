@@ -2797,19 +2797,21 @@ REGRAS PARA A IA:
       analysisJson.risk_management.atr_value = parseFloat(ci.atr.toFixed(6));
       analysisJson.risk_management.stop_loss = sl;
       
+      // ASYMMETRIC TPs: TP1=1.5x SL, TP2=2.5x SL, TP3=3.5x SL
+      // This ensures profitability even with <50% win rate
       if (ci.signal === "COMPRA") {
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry + slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry + 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3.5 * slDist).toFixed(6));
       } else if (ci.signal === "VENDA") {
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry - slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry - 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry - 3 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry - 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry - 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry - 3.5 * slDist).toFixed(6));
       } else {
-        // NEUTRO — still provide reference levels
-        analysisJson.risk_management.take_profit_1 = parseFloat((entry + slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2 * slDist).toFixed(6));
-        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3 * slDist).toFixed(6));
+        // NEUTRO — reference levels
+        analysisJson.risk_management.take_profit_1 = parseFloat((entry + 1.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_2 = parseFloat((entry + 2.5 * slDist).toFixed(6));
+        analysisJson.risk_management.take_profit_3 = parseFloat((entry + 3.5 * slDist).toFixed(6));
       }
       analysisJson.risk_management.risk_pct = parseFloat((slDist / entry * 100).toFixed(2));
 
