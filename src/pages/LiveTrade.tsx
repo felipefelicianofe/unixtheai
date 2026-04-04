@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Radio, Wifi, WifiOff, Plus, X } from "lucide-react";
+import { Radio, Wifi, WifiOff, Plus, X, Signal, SignalLow } from "lucide-react";
 import AppNavBar from "@/components/AppNavBar";
 import MultiAssetTicker from "@/components/livetrade/MultiAssetTicker";
 import DepthChart from "@/components/livetrade/DepthChart";
