@@ -11,14 +11,10 @@ const corsHeaders = {
 // Quality Gate Thresholds (10-Point Improvement Plan)
 // ═══════════════════════════════════════════════════════════
 const MIN_CONFIDENCE_PCT = 50;         // #1 - Reject signals below 50%
-const MIN_CONFLUENCE_PCT = 52;         // #2 - Raise from 45% to 52%
 const HTF_MANDATORY = true;           // #3 - Kill Zone: HTF disagreement = NEUTRAL
-const MIN_VOLUME_RATIO = 0.5;         // #4 - Volume must be >50% of 20-period avg
 const RSI_OVERBOUGHT = 70;            // #5 - No BUY above 70
 const RSI_OVERSOLD = 30;              // #5 - No SELL below 30
-const ATR_PERCENTILE_MIN = 20;        // #6 - No entries in dead markets
-const MIN_RR_RATIO = 1.5;             // #7 - TP1 must be ≥1.5x SL distance
-const BACKTEST_MIN_WINRATE = 40;      // #9 - Backtest gate
+const BACKTEST_MIN_WINRATE = 35;      // #9 - Backtest gate (calibrated from 40→35)
 const LOSS_COOLDOWN_MULTIPLIER = 2;   // #10 - 2x analysis_period cooldown after loss
 
 // ═══════════════════════════════════════════════════════════
