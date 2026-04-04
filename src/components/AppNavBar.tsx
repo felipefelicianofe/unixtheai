@@ -1,8 +1,10 @@
-import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase, Radio } from "lucide-react";
+import { Activity, BarChart3, Bot, Clock, LogOut, TestTube, Briefcase, Radio, Shield } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -12,11 +14,13 @@ const navItems = [
   { label: "Auto Teste", href: "/autoteste", icon: TestTube },
   { label: "Auto Gerenciamento", href: "/autogerenciamento", icon: Briefcase },
   { label: "Histórico", href: "/history", icon: Clock },
+  { label: "Admin", href: "/admin", icon: Shield },
 ];
 
 const AppNavBar = () => {
   const location = useLocation();
   const { signOut } = useAuth();
+  const { notifications, unreadCount, markAllRead, clearAll } = useNotifications();
 
   return (
     <motion.header
@@ -65,7 +69,36 @@ const AppNavBar = () => {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAllRead={markAllRead}
+              onClearAll={clearAll}
+            />
+            {/* Theme toggle */}
+            <button
+              onClick={() => {
+                const root = document.documentElement;
+                const isDark = root.classList.contains("dark");
+                if (isDark) {
+                  root.classList.remove("dark");
+                  localStorage.setItem("theme", "light");
+                } else {
+                  root.classList.add("dark");
+                  localStorage.setItem("theme", "dark");
+                }
+              }}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors"
+              title="Alternar tema"
+            >
+              <svg className="w-4 h-4 dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+              <svg className="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </button>
             <span className="w-2 h-2 rounded-full bg-[hsl(var(--neon-green))] animate-pulse" />
             <span className="text-xs text-muted-foreground hidden sm:block">Online</span>
             <Button
