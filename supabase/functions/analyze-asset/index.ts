@@ -926,11 +926,11 @@ function calcDeterministicSignal(
   let htfAgreement = true;
   let confidence = dominantPct;
 
-  // Tier 1 structure penalty (instead of veto)
+  // Tier 1 structure HARD GATE: if structure disagrees, force NEUTRAL
   if (rawSignal !== "NEUTRAL") {
     if ((rawSignal === "BUY" && tier1Direction === "SELL") || (rawSignal === "SELL" && tier1Direction === "BUY")) {
-      confidence *= 0.80; // 20% penalty instead of forcing NEUTRAL
-      console.log(`[SIGNAL] Tier1 penalty: ${rawSignal} but structure is ${tier1Direction}. Confidence reduced.`);
+      console.log(`[SIGNAL] Tier1 VETO: ${rawSignal} but structure is ${tier1Direction}. Forcing NEUTRAL.`);
+      rawSignal = "NEUTRAL";
     }
   }
   
