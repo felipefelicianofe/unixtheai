@@ -70,17 +70,6 @@ function applyQualityFilters(result: any, signal: string): QualityResult {
       return { passed: false, reason: `LOW_BACKTEST_WR(${backtest.winRate}%<${BACKTEST_MIN_WINRATE}%)`, overrideToNeutral: true };
     }
   }
-      }
-    }
-  }
-
-  // #9 - Backtest gate
-  const backtest = result._backtest;
-  if (backtest && backtest.total >= 5) {
-    if (backtest.winRate < BACKTEST_MIN_WINRATE) {
-      return { passed: false, reason: `LOW_BACKTEST_WR(${backtest.winRate}%<${BACKTEST_MIN_WINRATE}%)`, overrideToNeutral: true };
-    }
-  }
 
   return { passed: true, overrideToNeutral: false };
 }
