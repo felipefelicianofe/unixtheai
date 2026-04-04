@@ -664,9 +664,9 @@ function regimeFilteredBacktest(
     
     const entry = closes[i];
     const sl = entry - entryDir * slDistance;
-    const tp1 = entry + entryDir * slDistance;
-    const tp2 = entry + entryDir * slDistance * 2;
-    const tp3 = entry + entryDir * slDistance * 3;
+    const tp1 = entry + entryDir * slDistance * 1.5;  // Asymmetric: 1.5x
+    const tp2 = entry + entryDir * slDistance * 2.5;  // Asymmetric: 2.5x
+    const tp3 = entry + entryDir * slDistance * 3.5;  // Asymmetric: 3.5x
     
     let hitSL = false, hitTP1 = false, hitTP2 = false, hitTP3 = false;
     for (let j = i + 1; j <= i + lookForward && !hitSL; j++) {
