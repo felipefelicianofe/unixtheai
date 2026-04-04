@@ -9,11 +9,11 @@ export function useAuditLog() {
     async (action: string, details: Record<string, unknown> = {}) => {
       if (!user) return;
       try {
-        await supabase.from("admin_audit_log" as "admin_audit_log" & keyof typeof supabase).insert({
-          admin_id: user.id,
-          action,
-          details,
-        } as Record<string, unknown>);
+        // Use rpc or raw fetch since types may not be synced yet
+        const { error } = await (supabase as unknown as { from: (t: string) => { insert: (r: Record<string, unknown>[]) => Promise<{ error: unknown }> } })
+          .from("admin_audit_log")
+          .insert([{ admin_id: user.id, action, details }]);
+        if (error) console.error("[AuditLog] Error:", error);
       } catch (err) {
         console.error("[AuditLog] Failed to log action:", err);
       }
